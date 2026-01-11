@@ -232,9 +232,7 @@ export function printReceipt(
 
     const printWindow = window.open('', '_blank', 'width=300,height=600');
     if (printWindow) {
-        printWindow.document.open();
-        printWindow.document.write(html);
-        printWindow.document.close();
+        printWindow.document.documentElement.innerHTML = html;
         printWindow.focus();
 
         // Delay print untuk pastikan content loaded
@@ -409,9 +407,7 @@ export function printZReport(
 
     const printWindow = window.open('', '_blank', 'width=300,height=600');
     if (printWindow) {
-        printWindow.document.open();
-        printWindow.document.write(html);
-        printWindow.document.close();
+        printWindow.document.documentElement.innerHTML = html;
         printWindow.focus();
 
         setTimeout(() => {
