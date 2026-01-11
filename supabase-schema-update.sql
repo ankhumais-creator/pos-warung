@@ -9,7 +9,7 @@ ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
 -- Add store_id for multi-outlet support (future)
 ALTER TABLE products 
-ADD COLUMN IF NOT EXISTS store_id TEXT DEFAULT 'default';
+ADD COLUMN IF NOT EXISTS store_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::uuid;
 
 -- Add is_active to categories for soft-delete
 ALTER TABLE categories

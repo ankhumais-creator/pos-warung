@@ -1,13 +1,16 @@
 -- 🚀 SUPABASE SCHEMA - POS Warung Database
 -- Run this SQL in Supabase SQL Editor to create all required tables
 
+-- Enable UUID extension (required for gen_random_uuid())
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- ================================================
 -- 1. PRODUCTS TABLE (Master Data)
 -- ================================================
 CREATE TABLE IF NOT EXISTS products (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
-    category_id TEXT NOT NULL,
+    category_id UUID NOT NULL,
     base_price INTEGER NOT NULL DEFAULT 0,
     is_available BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -21,7 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 -- 2. CATEGORIES TABLE
 -- ================================================
 CREATE TABLE IF NOT EXISTS categories (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     display_order INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -32,7 +35,7 @@ CREATE TABLE IF NOT EXISTS categories (
 -- 3. SHIFT LOGS TABLE
 -- ================================================
 CREATE TABLE IF NOT EXISTS shift_logs (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     shift_number TEXT NOT NULL UNIQUE,
     opened_by TEXT NOT NULL,
     opened_at TIMESTAMPTZ NOT NULL,
@@ -54,9 +57,9 @@ CREATE INDEX IF NOT EXISTS idx_shift_logs_opened_at ON shift_logs(opened_at DESC
 -- 4. TRANSACTIONS TABLE
 -- ================================================
 CREATE TABLE IF NOT EXISTS transactions (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_number TEXT NOT NULL UNIQUE,
-    shift_id TEXT NOT NULL REFERENCES shift_logs(id) ON DELETE RESTRICT,
+    shift_id UUID NOT NULL REFERENCES shift_logs(id) ON DELETE RESTRICT,
     items JSONB NOT NULL DEFAULT '[]', -- Array of transaction items
     subtotal INTEGER NOT NULL DEFAULT 0,
     tax INTEGER DEFAULT 0,
@@ -78,13 +81,13 @@ CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
 -- 5. INVENTORY EVENTS TABLE (Append-Only Log)
 -- ================================================
 CREATE TABLE IF NOT EXISTS inventory_events (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_type TEXT NOT NULL CHECK (event_type IN ('sale', 'restock', 'adjustment', 'waste')),
-    product_id TEXT NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
-    modifier_id TEXT,
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+    modifier_id UUID,
     quantity_change INTEGER NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL,
-    transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL,
+    transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
     metadata JSONB,
     synced_at TIMESTAMPTZ DEFAULT NOW()
 );

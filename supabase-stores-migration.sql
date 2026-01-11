@@ -5,7 +5,7 @@
 
 -- Create stores table
 CREATE TABLE IF NOT EXISTS stores (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     address TEXT,
     phone TEXT,
@@ -21,14 +21,14 @@ ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all operations on stores" ON stores
     FOR ALL USING (true) WITH CHECK (true);
 
--- Insert default store
+-- Insert default store with a fixed UUID
 INSERT INTO stores (id, name, address, phone) 
-VALUES ('default', 'Warung Pusat', 'Jl. Utama No. 1', '08123456789')
+VALUES ('00000000-0000-0000-0000-000000000001'::uuid, 'Warung Pusat', 'Jl. Utama No. 1', '08123456789')
 ON CONFLICT (id) DO NOTHING;
 
 -- Add store_id to transactions if not exists
 ALTER TABLE transactions 
-ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES stores(id) DEFAULT 'default';
+ADD COLUMN IF NOT EXISTS store_id UUID REFERENCES stores(id) DEFAULT '00000000-0000-0000-0000-000000000001'::uuid;
 
 -- Create index for faster queries
 CREATE INDEX IF NOT EXISTS idx_transactions_store ON transactions(store_id);
