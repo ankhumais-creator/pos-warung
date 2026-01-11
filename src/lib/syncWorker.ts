@@ -129,6 +129,8 @@ async function syncTransaction(
     entityId: string,
     payload: Record<string, unknown>
 ): Promise<SyncResult> {
+    if (!supabase) return { success: false, error: 'Supabase not available' };
+
     if (action === 'create') {
         const { error } = await supabase.from('transactions').insert({
             id: entityId,
@@ -160,6 +162,8 @@ async function syncShiftLog(
     entityId: string,
     payload: Record<string, unknown>
 ): Promise<SyncResult> {
+    if (!supabase) return { success: false, error: 'Supabase not available' };
+
     if (action === 'create' || action === 'update') {
         const data = {
             id: entityId,
@@ -194,6 +198,8 @@ async function syncProduct(
     entityId: string,
     payload: Record<string, unknown>
 ): Promise<SyncResult> {
+    if (!supabase) return { success: false, error: 'Supabase not available' };
+
     if (action === 'create' || action === 'update') {
         const data = {
             id: entityId,

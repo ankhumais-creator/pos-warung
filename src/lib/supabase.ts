@@ -5,22 +5,24 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Validate configuration
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('⚠️ Supabase credentials not configured. Sync disabled.');
-}
-
-// Create Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-    },
-});
-
 // Helper to check if Supabase is configured
 export function isSupabaseConfigured(): boolean {
     return Boolean(supabaseUrl && supabaseAnonKey);
+}
+
+// Create Supabase client only if configured (avoids runtime error)
+export const supabase = isSupabaseConfigured()
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+        },
+    })
+    : null;
+
+// Log warning if not configured
+if (!isSupabaseConfigured()) {
+    console.warn('⚠️ Supabase not configured. Running in offline-only mode.');
 }
 
 // Database types for Supabase (matches our Dexie schema)
