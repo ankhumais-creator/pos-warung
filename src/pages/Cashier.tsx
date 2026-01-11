@@ -146,29 +146,29 @@ export default function Cashier() {
     const handlePaymentComplete = async (amountPaid: number, change: number) => {
         if (!currentShift) return;
 
-        try {
-            // Helper: Transform selected modifiers to flat array
-            const flattenModifiers = (selectedModifiers: typeof cart[0]['selectedModifiers']) =>
-                selectedModifiers.flatMap(m =>
-                    m.selected.map(mod => ({
-                        groupName: m.group.name,
-                        modifierName: mod.name,
-                        priceAdjustment: mod.priceAdjustment,
-                    }))
-                );
-
-            // Prepare transaction items with correct format
-            const items = cart.map((item, index) => ({
+        // Pre-process cart items before try block to reduce nesting
+        const items = cart.map((item, index) => {
+            const modifiers = item.selectedModifiers.flatMap(m =>
+                m.selected.map(mod => ({
+                    groupName: m.group.name,
+                    modifierName: mod.name,
+                    priceAdjustment: mod.priceAdjustment,
+                }))
+            );
+            return {
                 id: `item_${Date.now()}_${index}`,
                 transactionId: '', // Will be set by addTransaction
                 productId: item.product.id,
                 productName: item.product.name,
                 quantity: item.quantity,
                 basePrice: item.product.basePrice,
-                selectedModifiers: flattenModifiers(item.selectedModifiers),
+                selectedModifiers: modifiers,
                 notes: item.notes || '',
                 itemTotal: item.itemTotal,
-            }));
+            };
+        });
+
+        try {
 
             // Save transaction
             await addTransaction({
