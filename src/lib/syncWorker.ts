@@ -96,7 +96,7 @@ export function useSyncWorker() {
         runSyncCycle();
 
         // Set up interval
-        intervalRef.current = window.setInterval(runSyncCycle, SYNC_INTERVAL_MS);
+        intervalRef.current = globalThis.setInterval(runSyncCycle, SYNC_INTERVAL_MS);
 
         // Listen for online event
         const handleOnline = () => {
@@ -104,13 +104,13 @@ export function useSyncWorker() {
             runSyncCycle();
         };
 
-        window.addEventListener('online', handleOnline);
+        globalThis.addEventListener('online', handleOnline);
 
         return () => {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
             }
-            window.removeEventListener('online', handleOnline);
+            globalThis.removeEventListener('online', handleOnline);
         };
     }, [runSyncCycle]);
 
@@ -220,12 +220,10 @@ async function syncProduct(
 // Mark local entity as synced
 async function markAsSynced(entityType: string, entityId: string) {
     try {
-        switch (entityType) {
-            case 'transaction':
-                await db.transactions.update(entityId, { syncedToServer: true });
-                break;
-            // Add other entity types as needed
+        if (entityType === 'transaction') {
+            await db.transactions.update(entityId, { syncedToServer: true });
         }
+        // Add other entity types as needed
     } catch (error) {
         console.warn('Could not mark as synced:', error);
     }

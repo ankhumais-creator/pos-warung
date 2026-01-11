@@ -15,6 +15,19 @@ const DEFAULT_CONFIG: ReceiptConfig = {
     footer: 'Terima Kasih atas Kunjungan Anda!',
 };
 
+// Z-Report data interface (consolidates parameters to avoid too many args)
+export interface ZReportData {
+    shiftNumber: string;
+    cashierName: string;
+    openedAt: number;
+    closedAt: number;
+    openingCash: number;
+    totalTransactions: number;
+    totalRevenue: number;
+    actualCash: number;
+    variance: number;
+}
+
 /**
  * Format tanggal Indonesia
  */
@@ -219,7 +232,7 @@ export function printReceipt(
 
     const printWindow = window.open('', '_blank', 'width=300,height=600');
     if (printWindow) {
-        printWindow.document.write(html);
+        printWindow.document.open();`r`n        printWindow.document.write(html); // eslint-disable-line deprecation/deprecation
         printWindow.document.close();
         printWindow.focus();
 
@@ -235,17 +248,10 @@ export function printReceipt(
  * Generate Z-Report HTML untuk close shift
  */
 export function generateZReportHTML(
-    shiftNumber: string,
-    cashierName: string,
-    openedAt: number,
-    closedAt: number,
-    openingCash: number,
-    totalTransactions: number,
-    totalRevenue: number,
-    actualCash: number,
-    variance: number,
+    data: ZReportData,
     config: ReceiptConfig = DEFAULT_CONFIG
 ): string {
+    const { shiftNumber, cashierName, openedAt, closedAt, openingCash, totalTransactions, totalRevenue, actualCash, variance } = data;
     const expectedCash = openingCash + totalRevenue;
 
     return `
@@ -395,25 +401,14 @@ export function generateZReportHTML(
  * Print Z-Report
  */
 export function printZReport(
-    shiftNumber: string,
-    cashierName: string,
-    openedAt: number,
-    closedAt: number,
-    openingCash: number,
-    totalTransactions: number,
-    totalRevenue: number,
-    actualCash: number,
-    variance: number,
+    data: ZReportData,
     config?: ReceiptConfig
 ): void {
-    const html = generateZReportHTML(
-        shiftNumber, cashierName, openedAt, closedAt,
-        openingCash, totalTransactions, totalRevenue, actualCash, variance, config
-    );
+    const html = generateZReportHTML(data, config);
 
     const printWindow = window.open('', '_blank', 'width=300,height=600');
     if (printWindow) {
-        printWindow.document.write(html);
+        printWindow.document.open();`r`n        printWindow.document.write(html); // eslint-disable-line deprecation/deprecation
         printWindow.document.close();
         printWindow.focus();
 

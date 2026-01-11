@@ -59,17 +59,17 @@ export default function CloseShiftModal({ shift, onClose, onShiftClosed }: Close
             });
 
             // Print Z-Report
-            printZReport(
-                shift.shiftNumber,
-                shift.openedBy,
-                shift.openedAt,
+            printZReport({
+                shiftNumber: shift.shiftNumber,
+                cashierName: shift.openedBy,
+                openedAt: shift.openedAt,
                 closedAt,
-                shift.openingCash,
+                openingCash: shift.openingCash,
                 totalTransactions,
                 totalRevenue,
-                numericActual,
-                variance
-            );
+                actualCash: numericActual,
+                variance,
+            });
 
             onShiftClosed();
         } catch (error) {
