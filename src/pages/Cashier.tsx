@@ -64,22 +64,24 @@ export default function Cashier() {
         ? products.filter(p => p.categoryId === selectedCategory)
         : products;
 
+    // Helper: Find modifier price adjustment by ID
+    const findModifierPrice = (modId: string): number => {
+        if (!selectedProduct) return 0;
+        for (const group of selectedProduct.modifierGroups) {
+            const modifier = group.modifiers.find(m => m.id === modId);
+            if (modifier) return modifier.priceAdjustment;
+        }
+        return 0;
+    };
+
     // Calculate item total based on modifier selections
     const calculateItemTotal = () => {
         if (!selectedProduct) return 0;
 
-        let total = selectedProduct.basePrice;
+        const selectedModIds = Object.values(modifierSelections).flat();
+        const modifiersTotal = selectedModIds.reduce((sum, modId) => sum + findModifierPrice(modId), 0);
 
-        Object.values(modifierSelections).flat().forEach(modId => {
-            selectedProduct.modifierGroups.forEach(group => {
-                const modifier = group.modifiers.find(m => m.id === modId);
-                if (modifier) {
-                    total += modifier.priceAdjustment;
-                }
-            });
-        });
-
-        return total * quantity;
+        return (selectedProduct.basePrice + modifiersTotal) * quantity;
     };
 
     const handleAddToCart = () => {
@@ -108,6 +110,30 @@ export default function Cashier() {
         setNotes('');
     };
 
+    // Handle modifier selection change (extracted to reduce nesting)
+    const handleModifierChange = (
+        group: { id: string; selectionType: string },
+        modifier: { id: string },
+        checked: boolean
+    ) => {
+        if (group.selectionType === 'single') {
+            setModifierSelections(prev => ({
+                ...prev,
+                [group.id]: [modifier.id],
+            }));
+        } else {
+            setModifierSelections(prev => {
+                const current = prev[group.id] || [];
+                return {
+                    ...prev,
+                    [group.id]: checked
+                        ? [...current, modifier.id]
+                        : current.filter(id => id !== modifier.id),
+                };
+            });
+        }
+    };
+
     const cartTotal = cart.reduce((sum, item) => sum + item.itemTotal, 0);
 
     // Handle CHARGE button click
@@ -121,6 +147,16 @@ export default function Cashier() {
         if (!currentShift) return;
 
         try {
+            // Helper: Transform selected modifiers to flat array
+            const flattenModifiers = (selectedModifiers: typeof cart[0]['selectedModifiers']) =>
+                selectedModifiers.flatMap(m =>
+                    m.selected.map(mod => ({
+                        groupName: m.group.name,
+                        modifierName: mod.name,
+                        priceAdjustment: mod.priceAdjustment,
+                    }))
+                );
+
             // Prepare transaction items with correct format
             const items = cart.map((item, index) => ({
                 id: `item_${Date.now()}_${index}`,
@@ -129,13 +165,7 @@ export default function Cashier() {
                 productName: item.product.name,
                 quantity: item.quantity,
                 basePrice: item.product.basePrice,
-                selectedModifiers: item.selectedModifiers.flatMap(m =>
-                    m.selected.map(mod => ({
-                        groupName: m.group.name,
-                        modifierName: mod.name,
-                        priceAdjustment: mod.priceAdjustment,
-                    }))
-                ),
+                selectedModifiers: flattenModifiers(item.selectedModifiers),
                 notes: item.notes || '',
                 itemTotal: item.itemTotal,
             }));
@@ -143,7 +173,7 @@ export default function Cashier() {
             // Save transaction
             await addTransaction({
                 shiftId: currentShift.id,
-                transactionNumber: `TRX-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Date.now().toString().slice(-3)}`,
+                transactionNumber: `TRX-${new Date().toISOString().split('T')[0].replaceAll('-', '')}-${Date.now().toString().slice(-3)}`,
                 items,
                 subtotal: cartTotal,
                 tax: 0,
@@ -378,24 +408,7 @@ export default function Cashier() {
                                                                         name={group.id}
                                                                         checked={isSelected}
                                                                         disabled={!modifier.isAvailable}
-                                                                        onChange={(e) => {
-                                                                            if (group.selectionType === 'single') {
-                                                                                setModifierSelections(prev => ({
-                                                                                    ...prev,
-                                                                                    [group.id]: [modifier.id],
-                                                                                }));
-                                                                            } else {
-                                                                                setModifierSelections(prev => {
-                                                                                    const current = prev[group.id] || [];
-                                                                                    return {
-                                                                                        ...prev,
-                                                                                        [group.id]: e.target.checked
-                                                                                            ? [...current, modifier.id]
-                                                                                            : current.filter(id => id !== modifier.id),
-                                                                                    };
-                                                                                });
-                                                                            }
-                                                                        }}
+                                                                        onChange={(e) => handleModifierChange(group, modifier, e.target.checked)}
                                                                         className="w-4 h-4"
                                                                     />
                                                                     <span className="text-sm font-medium">
