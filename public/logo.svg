@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Circle border -->
+  <circle cx="50" cy="50" r="46" stroke="#18181b" fill="none"/>
+  
+  <!-- Shopping cart base -->
+  <path d="M25 35 L30 35 L38 60 L70 60 L75 42 L35 42" stroke="#18181b"/>
+  
+  <!-- Cart wheels -->
+  <circle cx="42" cy="68" r="4" stroke="#18181b" fill="#18181b"/>
+  <circle cx="65" cy="68" r="4" stroke="#18181b" fill="#18181b"/>
+  
+  <!-- Warung roof (house/shop symbol) -->
+  <path d="M35 42 L52 25 L70 42" stroke="#18181b" stroke-width="4"/>
+  <line x1="52" y1="25" x2="52" y2="18" stroke="#18181b" stroke-width="3"/>
+  
+  <!-- Receipt/POS element -->
+  <rect x="45" y="48" width="12" height="8" rx="1" stroke="#18181b" fill="none"/>
+  <line x1="48" y1="51" x2="54" y2="51" stroke="#18181b" stroke-width="2"/>
+  <line x1="48" y1="54" x2="52" y2="54" stroke="#18181b" stroke-width="2"/>
+</svg>
