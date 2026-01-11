@@ -2,13 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useCashierStore } from '../lib/store';
 import { db, getProductsWithModifiers, getCurrentShift, addTransaction } from '../lib/db';
-import type { Transaction } from '../lib/db';
 import { Coffee, UtensilsCrossed, CupSoda, Cake, Pizza, ShoppingCart, X, Plus, Minus, LogOut, Search, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PaymentModal from '../components/PaymentModal';
 import SuccessToast from '../components/SuccessToast';
 import CloseShiftModal from '../components/CloseShiftModal';
-import { printDebtReceipt } from '../lib/receipt';
+
 
 const CATEGORY_ICONS: Record<string, any> = {
     'cat_1': Coffee,
@@ -157,10 +156,9 @@ export default function Cashier() {
 
     // Handle payment completion
     const handlePaymentComplete = async (paymentData: {
-        mode: 'cash' | 'kasbon';
+        mode: 'cash';
         amountPaid: number;
         change: number;
-        customerName?: string;
     }) => {
         if (!currentShift) return;
 
@@ -205,31 +203,19 @@ export default function Cashier() {
         }
 
         try {
-            const isKasbon = paymentData.mode === 'kasbon';
-
-            // Save transaction
-            const transaction = await addTransaction({
+            // Save transaction (cash only)
+            await addTransaction({
                 shiftId: currentShift.id,
                 transactionNumber: `TRX-${new Date().toISOString().split('T')[0].replaceAll('-', '')}-${Date.now().toString().slice(-3)}`,
                 items,
                 subtotal: cartTotal,
                 tax: 0,
                 total: cartTotal,
-                paymentMethod: paymentData.mode,
-                customerName: isKasbon ? paymentData.customerName : undefined,
-                cashReceived: isKasbon ? 0 : paymentData.amountPaid,
-                cashChange: isKasbon ? 0 : paymentData.change,
+                paymentMethod: 'cash',
+                cashReceived: paymentData.amountPaid,
+                cashChange: paymentData.change,
                 status: 'completed',
             });
-
-            // Print debt receipt if kasbon
-            if (isKasbon && paymentData.customerName) {
-                printDebtReceipt({
-                    transaction: transaction as Transaction,
-                    customerName: paymentData.customerName,
-                    cashierName: currentShift.openedBy,
-                });
-            }
 
             // Clear cart
             useCashierStore.getState().clearCart();

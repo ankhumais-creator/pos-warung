@@ -14,7 +14,7 @@ export interface Outlet {
 // Default outlet when Supabase not connected
 const DEFAULT_OUTLETS: Outlet[] = [
     { id: 'all', name: 'Semua Outlet' },
-    { id: 'default', name: 'Warung Pusat', address: 'Jl. Utama No. 1' },
+    { id: 'default', name: 'Outlet Utama', address: 'Jl. Utama No. 1' },
 ];
 
 interface AdminState {

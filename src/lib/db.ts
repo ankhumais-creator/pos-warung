@@ -58,8 +58,7 @@ export interface Transaction {
     subtotal: number;
     tax: number;
     total: number;
-    paymentMethod: 'cash' | 'qris' | 'debit' | 'credit' | 'kasbon';
-    customerName?: string; // Nama pelanggan (wajib untuk kasbon)
+    paymentMethod: 'cash' | 'qris' | 'debit' | 'credit';
     cashReceived?: number; // Uang yang diterima dari customer
     cashChange?: number; // Kembalian
     status: 'completed' | 'pending' | 'cancelled';

@@ -29,7 +29,7 @@ export default function StoreSelect({ onStoreSelected }: StoreSelectProps) {
         try {
             // If Supabase not configured, use default store
             if (!isSupabaseConfigured() || !supabase) {
-                setStores([{ id: 'default', name: 'Warung Pusat', address: 'Mode Offline' }]);
+                setStores([{ id: 'default', name: 'Outlet Utama', address: 'Mode Offline' }]);
                 setIsLoading(false);
                 return;
             }
@@ -43,16 +43,16 @@ export default function StoreSelect({ onStoreSelected }: StoreSelectProps) {
             if (fetchError) {
                 console.error('Error fetching stores:', fetchError);
                 // Fallback to default store
-                setStores([{ id: 'default', name: 'Warung Pusat', address: 'Offline Mode' }]);
+                setStores([{ id: 'default', name: 'Outlet Utama', address: 'Offline Mode' }]);
             } else if (data && data.length > 0) {
                 setStores(data);
             } else {
                 // No stores in database, create default
-                setStores([{ id: 'default', name: 'Warung Pusat', address: 'Default' }]);
+                setStores([{ id: 'default', name: 'Outlet Utama', address: 'Default' }]);
             }
         } catch {
             setError('Gagal memuat daftar outlet');
-            setStores([{ id: 'default', name: 'Warung Pusat', address: 'Offline' }]);
+            setStores([{ id: 'default', name: 'Outlet Utama', address: 'Offline' }]);
         } finally {
             setIsLoading(false);
         }
@@ -101,8 +101,8 @@ export default function StoreSelect({ onStoreSelected }: StoreSelectProps) {
                                         key={store.id}
                                         onClick={() => setSelectedStore(store.id)}
                                         className={`w-full p-4 rounded-lg border-2 text-left transition-all ${selectedStore === store.id
-                                                ? 'border-base-900 bg-base-50'
-                                                : 'border-base-200 hover:border-base-400'
+                                            ? 'border-base-900 bg-base-50'
+                                            : 'border-base-200 hover:border-base-400'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">
