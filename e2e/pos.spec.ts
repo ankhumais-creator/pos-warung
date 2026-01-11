@@ -17,9 +17,9 @@ import { test, expect, Page } from '@playwright/test';
 async function clearDatabaseAndReload(page: Page) {
     await page.evaluate(async () => {
         localStorage.clear();
-        const dbs = await window.indexedDB.databases();
+        const dbs = await globalThis.indexedDB.databases();
         for (const db of dbs) {
-            if (db.name) window.indexedDB.deleteDatabase(db.name);
+            if (db.name) globalThis.indexedDB.deleteDatabase(db.name);
         }
     });
     await page.reload();
