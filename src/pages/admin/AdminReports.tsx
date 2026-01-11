@@ -36,6 +36,176 @@ interface CategorySales {
     value: number;
 }
 
+interface TransactionData {
+    id: string;
+    total: number;
+    status: string;
+    createdAt: number;
+    storeId?: string;
+    items?: Array<{
+        productId: string;
+        productName: string;
+        quantity: number;
+        itemTotal: number;
+    }>;
+}
+
+// ===== HELPER FUNCTIONS (extracted to reduce cognitive complexity) =====
+
+/** Fetch transactions from Supabase */
+async function fetchFromSupabase(
+    todayStart: number,
+    selectedOutlet: string
+): Promise<TransactionData[] | null> {
+    if (!isSupabaseConfigured() || !supabase) return null;
+
+    try {
+        let query = supabase
+            .from('transactions')
+            .select('*')
+            .eq('status', 'completed')
+            .gte('created_at', new Date(todayStart).toISOString());
+
+        if (selectedOutlet !== 'all') {
+            query = query.eq('store_id', selectedOutlet);
+        }
+
+        const { data, error } = await query;
+
+        if (error || !data || data.length === 0) return null;
+
+        return data.map(tx => ({
+            id: tx.id,
+            total: tx.total,
+            status: tx.status,
+            createdAt: new Date(tx.created_at).getTime(),
+            storeId: tx.store_id,
+            items: tx.items || [],
+        }));
+    } catch (err) {
+        console.warn('Supabase fetch failed:', err);
+        return null;
+    }
+}
+
+/** Fetch transactions from local Dexie database */
+async function fetchFromLocal(
+    todayStart: number,
+    selectedOutlet: string
+): Promise<TransactionData[]> {
+    const localTx = await db.transactions
+        .where('createdAt')
+        .above(todayStart)
+        .toArray();
+
+    return localTx
+        .filter(tx => {
+            if (tx.status !== 'completed') return false;
+            if (selectedOutlet !== 'all' && tx.storeId && tx.storeId !== selectedOutlet) {
+                return false;
+            }
+            return true;
+        })
+        .map(tx => ({
+            id: tx.id,
+            total: tx.total,
+            status: tx.status,
+            createdAt: tx.createdAt,
+            storeId: tx.storeId,
+            items: tx.items,
+        }));
+}
+
+/** Calculate hourly revenue data */
+function calculateHourlyData(transactions: TransactionData[]): HourlyData[] {
+    const hourlyMap = new Map<number, { revenue: number; count: number }>();
+    for (let i = 6; i <= 22; i++) {
+        hourlyMap.set(i, { revenue: 0, count: 0 });
+    }
+
+    for (const tx of transactions) {
+        const hour = new Date(tx.createdAt).getHours();
+        const current = hourlyMap.get(hour);
+        if (current) {
+            current.revenue += tx.total;
+            current.count += 1;
+        }
+    }
+
+    const result: HourlyData[] = [];
+    hourlyMap.forEach((data, hour) => {
+        result.push({
+            hour: `${hour}:00`,
+            revenue: data.revenue,
+            transactions: data.count,
+        });
+    });
+
+    return result;
+}
+
+/** Calculate top selling products */
+function calculateTopProducts(transactions: TransactionData[]): ProductSales[] {
+    const productMap = new Map<string, { name: string; qty: number; rev: number }>();
+
+    for (const tx of transactions) {
+        if (!tx.items) continue;
+        for (const item of tx.items) {
+            const current = productMap.get(item.productId) || {
+                name: item.productName,
+                qty: 0,
+                rev: 0
+            };
+            current.qty += item.quantity;
+            current.rev += item.itemTotal;
+            productMap.set(item.productId, current);
+        }
+    }
+
+    return Array.from(productMap.values())
+        .map(p => ({ name: p.name, quantity: p.qty, revenue: p.rev }))
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5);
+}
+
+/** Calculate category sales for pie chart */
+async function calculateCategorySales(transactions: TransactionData[]): Promise<CategorySales[]> {
+    const categories = await db.categories.toArray();
+    const products = await db.products.toArray();
+
+    const categoryMap = new Map<string, number>();
+    categories.forEach(cat => categoryMap.set(cat.id, 0));
+
+    for (const tx of transactions) {
+        if (!tx.items) continue;
+        for (const item of tx.items) {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+                const current = categoryMap.get(product.categoryId) || 0;
+                categoryMap.set(product.categoryId, current + item.itemTotal);
+            }
+        }
+    }
+
+    return categories
+        .filter(cat => (categoryMap.get(cat.id) || 0) > 0)
+        .map(cat => ({
+            name: cat.name,
+            value: categoryMap.get(cat.id) || 0,
+        }))
+        .sort((a, b) => b.value - a.value);
+}
+
+/** Count total items sold */
+function countTotalItems(transactions: TransactionData[]): number {
+    return transactions.reduce((total, tx) => {
+        if (!tx.items) return total;
+        return total + tx.items.reduce((sum, item) => sum + item.quantity, 0);
+    }, 0);
+}
+
+// ===== MAIN COMPONENT =====
+
 export default function AdminReports() {
     const { selectedOutlet, dateRange } = useAdminStore();
     const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
@@ -53,171 +223,24 @@ export default function AdminReports() {
     const loadReportData = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Get date range
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayStart = today.getTime();
 
-            let transactions: Array<{
-                id: string;
-                total: number;
-                status: string;
-                createdAt: number;
-                storeId?: string;
-                items?: Array<{
-                    productId: string;
-                    productName: string;
-                    quantity: number;
-                    itemTotal: number;
-                }>;
-            }> = [];
-
-            // Try to fetch from Supabase first
-            if (isSupabaseConfigured() && supabase) {
-                try {
-                    let query = supabase
-                        .from('transactions')
-                        .select('*')
-                        .eq('status', 'completed')
-                        .gte('created_at', new Date(todayStart).toISOString());
-
-                    // Filter by outlet if not "all"
-                    if (selectedOutlet !== 'all') {
-                        query = query.eq('store_id', selectedOutlet);
-                    }
-
-                    const { data, error } = await query;
-
-                    if (!error && data && data.length > 0) {
-                        transactions = data.map(tx => ({
-                            id: tx.id,
-                            total: tx.total,
-                            status: tx.status,
-                            createdAt: new Date(tx.created_at).getTime(),
-                            storeId: tx.store_id,
-                            items: tx.items || [],
-                        }));
-                        setDataSource('supabase');
-                    }
-                } catch (err) {
-                    console.warn('Supabase fetch failed, using local data:', err);
-                }
-            }
-
-            // Fallback to local Dexie data
-            if (transactions.length === 0) {
-                const localTx = await db.transactions
-                    .where('createdAt')
-                    .above(todayStart)
-                    .toArray();
-
-                transactions = localTx.filter(tx => {
-                    if (tx.status !== 'completed') return false;
-                    // Filter by outlet if not "all"
-                    if (selectedOutlet !== 'all' && tx.storeId && tx.storeId !== selectedOutlet) {
-                        return false;
-                    }
-                    return true;
-                }).map(tx => ({
-                    id: tx.id,
-                    total: tx.total,
-                    status: tx.status,
-                    createdAt: tx.createdAt,
-                    storeId: tx.storeId,
-                    items: tx.items,
-                }));
-
+            // Try Supabase first, fallback to local
+            let transactions = await fetchFromSupabase(todayStart, selectedOutlet);
+            if (transactions) {
+                setDataSource('supabase');
+            } else {
+                transactions = await fetchFromLocal(todayStart, selectedOutlet);
                 setDataSource('local');
             }
 
-            // Calculate hourly data
-            const hourlyMap = new Map<number, { revenue: number; count: number }>();
-            for (let i = 6; i <= 22; i++) {
-                hourlyMap.set(i, { revenue: 0, count: 0 });
-            }
+            // Calculate all metrics using helper functions
+            setHourlyData(calculateHourlyData(transactions));
+            setTopProducts(calculateTopProducts(transactions));
+            setCategorySales(await calculateCategorySales(transactions));
 
-            let totalItems = 0;
-
-            for (const tx of transactions) {
-                const hour = new Date(tx.createdAt).getHours();
-                if (hourlyMap.has(hour)) {
-                    const current = hourlyMap.get(hour)!;
-                    current.revenue += tx.total;
-                    current.count += 1;
-                }
-
-                // Count items
-                if (tx.items) {
-                    totalItems += tx.items.reduce((sum, item) => sum + item.quantity, 0);
-                }
-            }
-
-            const hourlyResult: HourlyData[] = [];
-            hourlyMap.forEach((data, hour) => {
-                hourlyResult.push({
-                    hour: `${hour}:00`,
-                    revenue: data.revenue,
-                    transactions: data.count,
-                });
-            });
-
-            setHourlyData(hourlyResult);
-
-            // Calculate top products
-            const productMap = new Map<string, { name: string; qty: number; rev: number }>();
-
-            for (const tx of transactions) {
-                if (tx.items) {
-                    for (const item of tx.items) {
-                        const current = productMap.get(item.productId) || {
-                            name: item.productName,
-                            qty: 0,
-                            rev: 0
-                        };
-                        current.qty += item.quantity;
-                        current.rev += item.itemTotal;
-                        productMap.set(item.productId, current);
-                    }
-                }
-            }
-
-            const topProductsResult: ProductSales[] = Array.from(productMap.values())
-                .map(p => ({ name: p.name, quantity: p.qty, revenue: p.rev }))
-                .sort((a, b) => b.quantity - a.quantity)
-                .slice(0, 5);
-
-            setTopProducts(topProductsResult);
-
-            // Category sales for pie chart
-            const categories = await db.categories.toArray();
-            const products = await db.products.toArray();
-
-            const categoryMap = new Map<string, number>();
-            categories.forEach(cat => categoryMap.set(cat.id, 0));
-
-            for (const tx of transactions) {
-                if (tx.items) {
-                    for (const item of tx.items) {
-                        const product = products.find(p => p.id === item.productId);
-                        if (product) {
-                            const current = categoryMap.get(product.categoryId) || 0;
-                            categoryMap.set(product.categoryId, current + item.itemTotal);
-                        }
-                    }
-                }
-            }
-
-            const categoryResult: CategorySales[] = categories
-                .filter(cat => (categoryMap.get(cat.id) || 0) > 0)
-                .map(cat => ({
-                    name: cat.name,
-                    value: categoryMap.get(cat.id) || 0,
-                }))
-                .sort((a, b) => b.value - a.value);
-
-            setCategorySales(categoryResult);
-
-            // Calculate totals
             const totalRevenue = transactions.reduce((sum, tx) => sum + tx.total, 0);
             const totalTx = transactions.length;
 
@@ -225,7 +248,7 @@ export default function AdminReports() {
                 revenue: totalRevenue,
                 transactions: totalTx,
                 avgTicket: totalTx > 0 ? Math.round(totalRevenue / totalTx) : 0,
-                itemsSold: totalItems,
+                itemsSold: countTotalItems(transactions),
             });
 
         } catch (error) {
@@ -240,12 +263,8 @@ export default function AdminReports() {
     }, [loadReportData]);
 
     const formatCurrency = (value: number) => {
-        if (value >= 1000000) {
-            return `${(value / 1000000).toFixed(1)}M`;
-        }
-        if (value >= 1000) {
-            return `${(value / 1000).toFixed(0)}K`;
-        }
+        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
         return value.toString();
     };
 
@@ -282,8 +301,8 @@ export default function AdminReports() {
                 </div>
                 <div className="flex items-center gap-2">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${dataSource === 'supabase'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-zinc-100 text-zinc-600'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-zinc-100 text-zinc-600'
                         }`}>
                         {dataSource === 'supabase' ? '☁️ Supabase' : '💾 Lokal'}
                     </span>
@@ -375,12 +394,7 @@ export default function AdminReports() {
                             </AreaChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="flex items-center justify-center h-[300px] text-zinc-400">
-                            <div className="text-center">
-                                <div className="text-4xl mb-2">📉</div>
-                                <p>Data tersedia setelah ada transaksi</p>
-                            </div>
-                        </div>
+                        <EmptyChart icon="📉" message="Data tersedia setelah ada transaksi" />
                     )}
                 </div>
 
@@ -401,20 +415,18 @@ export default function AdminReports() {
                                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                                     labelLine={false}
                                 >
-                                    {categorySales.map((_, index) => (
-                                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                    {categorySales.map((category) => (
+                                        <Cell
+                                            key={`category-${category.name}`}
+                                            fill={PIE_COLORS[categorySales.indexOf(category) % PIE_COLORS.length]}
+                                        />
                                     ))}
                                 </Pie>
                                 <Tooltip formatter={(value: number) => formatFullCurrency(value)} />
                             </PieChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="flex items-center justify-center h-[300px] text-zinc-400">
-                            <div className="text-center">
-                                <div className="text-4xl mb-2">🥧</div>
-                                <p>Belum ada data kategori</p>
-                            </div>
-                        </div>
+                        <EmptyChart icon="🥧" message="Belum ada data kategori" />
                     )}
                 </div>
             </div>
@@ -450,12 +462,7 @@ export default function AdminReports() {
                         </BarChart>
                     </ResponsiveContainer>
                 ) : (
-                    <div className="flex items-center justify-center h-[250px] text-zinc-400">
-                        <div className="text-center">
-                            <div className="text-4xl mb-2">🏆</div>
-                            <p>Belum ada produk terjual</p>
-                        </div>
-                    </div>
+                    <EmptyChart icon="🏆" message="Belum ada produk terjual" height={250} />
                 )}
             </div>
 
@@ -471,7 +478,8 @@ export default function AdminReports() {
     );
 }
 
-// Summary Card Component
+// ===== SUB-COMPONENTS =====
+
 interface SummaryCardProps {
     readonly label: string;
     readonly value: string;
@@ -480,17 +488,35 @@ interface SummaryCardProps {
 }
 
 function SummaryCard({ label, value, icon, highlight }: SummaryCardProps) {
+    const baseClass = highlight
+        ? 'bg-base-900 text-white border-base-900'
+        : 'bg-white border-base-200';
+    const textClass = highlight ? 'text-white' : 'text-base-900';
+    const subtextClass = highlight ? 'text-zinc-300' : 'text-zinc-500';
+
     return (
-        <div className={`rounded-lg border p-4 ${highlight ? 'bg-base-900 text-white border-base-900' : 'bg-white border-base-200'
-            }`}>
+        <div className={`rounded-lg border p-4 ${baseClass}`}>
             <div className="flex items-center justify-between mb-2">
                 <span className="text-2xl">{icon}</span>
             </div>
-            <div className={`text-xl font-bold ${highlight ? 'text-white' : 'text-base-900'}`}>
-                {value}
-            </div>
-            <div className={`text-sm ${highlight ? 'text-zinc-300' : 'text-zinc-500'}`}>
-                {label}
+            <div className={`text-xl font-bold ${textClass}`}>{value}</div>
+            <div className={`text-sm ${subtextClass}`}>{label}</div>
+        </div>
+    );
+}
+
+interface EmptyChartProps {
+    readonly icon: string;
+    readonly message: string;
+    readonly height?: number;
+}
+
+function EmptyChart({ icon, message, height = 300 }: EmptyChartProps) {
+    return (
+        <div className={`flex items-center justify-center text-zinc-400`} style={{ height }}>
+            <div className="text-center">
+                <div className="text-4xl mb-2">{icon}</div>
+                <p>{message}</p>
             </div>
         </div>
     );

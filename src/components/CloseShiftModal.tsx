@@ -10,13 +10,13 @@ interface CloseShiftModalProps {
     onShiftClosed: () => void;
 }
 
-export default function CloseShiftModal({ shift, onClose, onShiftClosed }: CloseShiftModalProps) {
+export default function CloseShiftModal({ shift, onClose, onShiftClosed }: Readonly<CloseShiftModalProps>) {
     const [actualCash, setActualCash] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [totalTransactions, setTotalTransactions] = useState(0);
     const [totalRevenue, setTotalRevenue] = useState(0);
 
-    const numericActual = parseInt(actualCash.replace(/\D/g, '')) || 0;
+    const numericActual = Number.parseInt(actualCash.replaceAll(/\D/g, '')) || 0;
     const expectedCash = shift.openingCash + totalRevenue;
     const variance = numericActual - expectedCash;
 
@@ -81,9 +81,9 @@ export default function CloseShiftModal({ shift, onClose, onShiftClosed }: Close
     };
 
     const formatCurrency = (value: string) => {
-        const num = value.replace(/\D/g, '');
+        const num = value.replaceAll(/\D/g, '');
         if (!num) return '';
-        return parseInt(num).toLocaleString('id-ID');
+        return Number.parseInt(num).toLocaleString('id-ID');
     };
 
     const getVarianceColor = () => {
@@ -146,7 +146,7 @@ export default function CloseShiftModal({ shift, onClose, onShiftClosed }: Close
 
                     {/* Actual Cash Input */}
                     <div>
-                        <label className="block text-sm font-semibold text-zinc-700 mb-2">
+                        <label htmlFor="actual-cash-input" className="block text-sm font-semibold text-zinc-700 mb-2">
                             Uang Aktual di Laci (Hitung Manual)
                         </label>
                         <div className="relative">
@@ -154,6 +154,7 @@ export default function CloseShiftModal({ shift, onClose, onShiftClosed }: Close
                                 Rp
                             </span>
                             <input
+                                id="actual-cash-input"
                                 type="text"
                                 inputMode="numeric"
                                 value={actualCash}

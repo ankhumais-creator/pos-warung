@@ -7,7 +7,7 @@ interface OpenShiftModalProps {
     onShiftOpened: () => void;
 }
 
-export default function OpenShiftModal({ onShiftOpened }: OpenShiftModalProps) {
+export default function OpenShiftModal({ onShiftOpened }: Readonly<OpenShiftModalProps>) {
     const [cashierName, setCashierName] = useState('');
     const [openingCash, setOpeningCash] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,7 +20,7 @@ export default function OpenShiftModal({ onShiftOpened }: OpenShiftModalProps) {
             return;
         }
 
-        const cashAmount = parseInt(openingCash.replace(/\D/g, '')) || 0;
+        const cashAmount = Number.parseInt(openingCash.replaceAll(/\D/g, '')) || 0;
         if (cashAmount < 0) {
             setError('Modal awal tidak boleh negatif');
             return;
@@ -62,9 +62,9 @@ export default function OpenShiftModal({ onShiftOpened }: OpenShiftModalProps) {
     };
 
     const formatCurrency = (value: string) => {
-        const num = value.replace(/\D/g, '');
+        const num = value.replaceAll(/\D/g, '');
         if (!num) return '';
-        return parseInt(num).toLocaleString('id-ID');
+        return Number.parseInt(num).toLocaleString('id-ID');
     };
 
     const handleCashChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,10 +89,11 @@ export default function OpenShiftModal({ onShiftOpened }: OpenShiftModalProps) {
                 <div className="p-6 space-y-4">
                     {/* Cashier Name */}
                     <div>
-                        <label className="block text-sm font-semibold text-zinc-700 mb-2">
+                        <label htmlFor="cashier-name-input" className="block text-sm font-semibold text-zinc-700 mb-2">
                             Nama Kasir
                         </label>
                         <input
+                            id="cashier-name-input"
                             type="text"
                             value={cashierName}
                             onChange={(e) => setCashierName(e.target.value)}
@@ -104,7 +105,7 @@ export default function OpenShiftModal({ onShiftOpened }: OpenShiftModalProps) {
 
                     {/* Opening Cash */}
                     <div>
-                        <label className="block text-sm font-semibold text-zinc-700 mb-2">
+                        <label htmlFor="opening-cash-input" className="block text-sm font-semibold text-zinc-700 mb-2">
                             Modal Awal (Petty Cash)
                         </label>
                         <div className="relative">
@@ -112,6 +113,7 @@ export default function OpenShiftModal({ onShiftOpened }: OpenShiftModalProps) {
                                 Rp
                             </span>
                             <input
+                                id="opening-cash-input"
                                 type="text"
                                 inputMode="numeric"
                                 value={openingCash}

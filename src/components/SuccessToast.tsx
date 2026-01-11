@@ -8,7 +8,7 @@ interface SuccessToastProps {
     duration?: number;
 }
 
-export default function SuccessToast({ message, onClose, duration = 3000 }: SuccessToastProps) {
+export default function SuccessToast({ message, onClose, duration = 3000 }: Readonly<SuccessToastProps>) {
     useEffect(() => {
         const timer = setTimeout(onClose, duration);
         return () => clearTimeout(timer);

@@ -8,11 +8,11 @@ interface PaymentModalProps {
     onPaymentComplete: (amountPaid: number, change: number) => void;
 }
 
-export default function PaymentModal({ total, onClose, onPaymentComplete }: PaymentModalProps) {
+export default function PaymentModal({ total, onClose, onPaymentComplete }: Readonly<PaymentModalProps>) {
     const [amountPaid, setAmountPaid] = useState('');
     const [change, setChange] = useState(0);
 
-    const numericAmount = parseInt(amountPaid.replace(/\D/g, '')) || 0;
+    const numericAmount = Number.parseInt(amountPaid.replaceAll(/\D/g, '')) || 0;
 
     useEffect(() => {
         setChange(Math.max(0, numericAmount - total));
