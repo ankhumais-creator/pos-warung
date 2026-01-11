@@ -317,9 +317,9 @@ export default function AdminProducts() {
             </div>
 
             {/* Products Table */}
-            <div className="bg-white border border-base-200 rounded-lg overflow-hidden">
+            <div className="bg-white border border-base-200 rounded-lg overflow-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
                 <table className="w-full">
-                    <thead className="bg-base-100">
+                    <thead className="bg-base-100 sticky top-0 z-10">
                         <tr>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-base-900">Nama Produk</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-base-900">Kategori</th>
