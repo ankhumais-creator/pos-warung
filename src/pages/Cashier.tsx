@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useCashierStore } from '../lib/store';
 import { db, getProductsWithModifiers, getCurrentShift, addTransaction } from '../lib/db';
-import { Coffee, UtensilsCrossed, CupSoda, Cake, Pizza, ShoppingCart, X, Plus, Minus, LogOut } from 'lucide-react';
+import { Coffee, UtensilsCrossed, CupSoda, Cake, Pizza, ShoppingCart, X, Plus, Minus, LogOut, Search } from 'lucide-react';
 import PaymentModal from '../components/PaymentModal';
 import SuccessToast from '../components/SuccessToast';
 import CloseShiftModal from '../components/CloseShiftModal';
@@ -39,6 +39,7 @@ export default function Cashier() {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showSuccessToast, setShowSuccessToast] = useState(false);
     const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         loadData();
@@ -59,10 +60,12 @@ export default function Cashier() {
         }
     }
 
-    // Filter products by selected category
-    const filteredProducts = selectedCategory
-        ? products.filter(p => p.categoryId === selectedCategory)
-        : products;
+    // Filter products by search query (ignores category) or by selected category
+    const filteredProducts = searchQuery.trim()
+        ? products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        : (selectedCategory
+            ? products.filter(p => p.categoryId === selectedCategory)
+            : products);
 
     // Helper: Find modifier price adjustment by ID
     const findModifierPrice = (modId: string): number => {
@@ -284,34 +287,73 @@ export default function Cashier() {
 
                 {/* 2. PRODUCT GRID (Cols 3-8) */}
                 <main className="col-span-6 p-6 h-full overflow-y-auto custom-scrollbar">
-                    <div className="grid grid-cols-3 gap-4">
-                        {filteredProducts.map((product) => (
+                    {/* Search Bar */}
+                    <div className="relative mb-4">
+                        <Search
+                            size={20}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                        />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Cari produk..."
+                            className="w-full pl-10 pr-4 py-3 border border-base-200 rounded-lg focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+                        />
+                        {searchQuery && (
                             <button
-                                key={product.id}
-                                onClick={() => selectProduct(product)}
-                                className="card p-4 text-left hover:shadow-sm transition-shadow"
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                             >
-                                {/* Placeholder Image */}
-                                <div className="aspect-square bg-base-100 rounded-md mb-3 flex items-center justify-center">
-                                    <span className="text-4xl">{CATEGORY_ICONS[product.categoryId] ? '☕' : '🍽️'}</span>
-                                </div>
-
-                                <h3 className="font-medium text-base-900 mb-1 line-clamp-2">
-                                    {product.name}
-                                </h3>
-
-                                <p className="text-price">
-                                    Rp {product.basePrice.toLocaleString('id-ID')}
-                                </p>
-
-                                {!product.isAvailable && (
-                                    <span className="inline-block mt-2 text-xs font-semibold text-danger-600 bg-red-50 px-2 py-1 rounded">
-                                        Habis
-                                    </span>
-                                )}
+                                <X size={18} />
                             </button>
-                        ))}
+                        )}
                     </div>
+
+                    {/* Search indicator */}
+                    {searchQuery && (
+                        <p className="text-sm text-slate-500 mb-3">
+                            Mencari "{searchQuery}" di semua produk...
+                        </p>
+                    )}
+
+                    {/* Empty State */}
+                    {filteredProducts.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                            <Search size={64} strokeWidth={1} className="mb-4 opacity-30" />
+                            <p className="text-lg font-medium text-slate-500">Tidak ditemukan</p>
+                            <p className="text-sm">Coba kata kunci lain atau hapus filter pencarian</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-3 gap-4">
+                            {filteredProducts.map((product) => (
+                                <button
+                                    key={product.id}
+                                    onClick={() => selectProduct(product)}
+                                    className="card p-4 text-left hover:shadow-sm transition-shadow"
+                                >
+                                    {/* Placeholder Image */}
+                                    <div className="aspect-square bg-base-100 rounded-md mb-3 flex items-center justify-center">
+                                        <span className="text-4xl">{CATEGORY_ICONS[product.categoryId] ? '☕' : '🍽️'}</span>
+                                    </div>
+
+                                    <h3 className="font-medium text-base-900 mb-1 line-clamp-2">
+                                        {product.name}
+                                    </h3>
+
+                                    <p className="text-price">
+                                        Rp {product.basePrice.toLocaleString('id-ID')}
+                                    </p>
+
+                                    {!product.isAvailable && (
+                                        <span className="inline-block mt-2 text-xs font-semibold text-danger-600 bg-red-50 px-2 py-1 rounded">
+                                            Habis
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </main>
 
                 {/* 3. CART & MODIFIER PANEL (Cols 9-12) */}
