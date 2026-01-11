@@ -146,18 +146,36 @@ export default function Cashier() {
     const handlePaymentComplete = async (amountPaid: number, change: number) => {
         if (!currentShift) return;
 
-        // Pre-process cart items before try block to reduce nesting
-        const items = cart.map((item, index) => {
-            const modifiers = item.selectedModifiers.flatMap(m =>
-                m.selected.map(mod => ({
-                    groupName: m.group.name,
-                    modifierName: mod.name,
-                    priceAdjustment: mod.priceAdjustment,
-                }))
-            );
-            return {
+        // Pre-process cart items before try block (using loops to avoid deep nesting)
+        const items: Array<{
+            id: string;
+            transactionId: string;
+            productId: string;
+            productName: string;
+            quantity: number;
+            basePrice: number;
+            selectedModifiers: Array<{ groupName: string; modifierName: string; priceAdjustment: number }>;
+            notes: string;
+            itemTotal: number;
+        }> = [];
+
+        for (let index = 0; index < cart.length; index++) {
+            const item = cart[index];
+            const modifiers: Array<{ groupName: string; modifierName: string; priceAdjustment: number }> = [];
+
+            for (const m of item.selectedModifiers) {
+                for (const mod of m.selected) {
+                    modifiers.push({
+                        groupName: m.group.name,
+                        modifierName: mod.name,
+                        priceAdjustment: mod.priceAdjustment,
+                    });
+                }
+            }
+
+            items.push({
                 id: `item_${Date.now()}_${index}`,
-                transactionId: '', // Will be set by addTransaction
+                transactionId: '',
                 productId: item.product.id,
                 productName: item.product.name,
                 quantity: item.quantity,
@@ -165,8 +183,8 @@ export default function Cashier() {
                 selectedModifiers: modifiers,
                 notes: item.notes || '',
                 itemTotal: item.itemTotal,
-            };
-        });
+            });
+        }
 
         try {
 
