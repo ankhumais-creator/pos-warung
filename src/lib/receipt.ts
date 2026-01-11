@@ -232,7 +232,8 @@ export function printReceipt(
 
     const printWindow = window.open('', '_blank', 'width=300,height=600');
     if (printWindow) {
-        printWindow.document.open();`r`n        printWindow.document.write(html); // eslint-disable-line deprecation/deprecation
+        printWindow.document.open();
+        printWindow.document.write(html);
         printWindow.document.close();
         printWindow.focus();
 
@@ -408,7 +409,8 @@ export function printZReport(
 
     const printWindow = window.open('', '_blank', 'width=300,height=600');
     if (printWindow) {
-        printWindow.document.open();`r`n        printWindow.document.write(html); // eslint-disable-line deprecation/deprecation
+        printWindow.document.open();
+        printWindow.document.write(html);
         printWindow.document.close();
         printWindow.focus();
 
