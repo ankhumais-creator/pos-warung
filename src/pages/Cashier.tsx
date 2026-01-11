@@ -61,11 +61,16 @@ export default function Cashier() {
     }
 
     // Filter products by search query (ignores category) or by selected category
-    const filteredProducts = searchQuery.trim()
-        ? products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
-        : (selectedCategory
-            ? products.filter(p => p.categoryId === selectedCategory)
-            : products);
+    const getFilteredProducts = () => {
+        if (searchQuery.trim()) {
+            return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+        if (selectedCategory) {
+            return products.filter(p => p.categoryId === selectedCategory);
+        }
+        return products;
+    };
+    const filteredProducts = getFilteredProducts();
 
     // Helper: Find modifier price adjustment by ID
     const findModifierPrice = (modId: string): number => {
