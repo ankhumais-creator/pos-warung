@@ -114,7 +114,6 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
         try {
             const newOutlet = {
-                id: `store_${Date.now()}`,
                 name: outletData.name,
                 address: outletData.address || null,
                 phone: outletData.phone || null,
