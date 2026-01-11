@@ -62,7 +62,21 @@ export interface SupabaseProduct {
     name: string;
     category_id: string;
     base_price: number;
+    cost_price: number;
+    stock: number;
+    store_id: string;
     is_available: boolean;
+    is_active: boolean;
+    created_at: string;
+    synced_at: string;
+}
+
+export interface SupabaseCategory {
+    id: string;
+    name: string;
+    icon?: string;
+    display_order: number;
+    is_active: boolean;
     created_at: string;
     synced_at: string;
 }

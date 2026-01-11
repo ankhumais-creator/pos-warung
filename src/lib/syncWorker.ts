@@ -1,6 +1,6 @@
-// ⚡ SYNC WORKER - Background Process untuk One-Way Backup ke Supabase
-import { useEffect, useRef, useCallback } from 'react';
-import { db, type SyncQueue } from './db';
+// ⚡ SYNC WORKER - Two-Way Sync: Push to Server + Pull Master Data
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { db, type SyncQueue, type Product, type Category } from './db';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 const SYNC_INTERVAL_MS = 15000; // 15 detik
@@ -10,15 +10,22 @@ interface SyncResult {
     error?: string;
 }
 
+interface PullResult {
+    productsUpdated: number;
+    categoriesUpdated: number;
+}
+
 /**
- * Custom hook untuk background sync ke Supabase
- * Berjalan setiap 15 detik atau saat online
+ * Custom hook untuk two-way sync dengan Supabase
+ * - Push: Upload transactions/shifts ke server
+ * - Pull: Download master data (products/categories) dari server
  */
 export function useSyncWorker() {
     const isProcessing = useRef(false);
     const intervalRef = useRef<number | null>(null);
+    const [lastPullTime, setLastPullTime] = useState<number | null>(null);
 
-    // Process single sync item
+    // Process single sync item (PUSH)
     const processSyncItem = useCallback(async (item: SyncQueue): Promise<SyncResult> => {
         if (!isSupabaseConfigured()) {
             return { success: false, error: 'Supabase not configured' };
@@ -44,7 +51,7 @@ export function useSyncWorker() {
         }
     }, []);
 
-    // Main sync loop
+    // Main sync loop (PUSH)
     const runSyncCycle = useCallback(async () => {
         if (isProcessing.current) return;
         if (!navigator.onLine) return;
@@ -90,18 +97,102 @@ export function useSyncWorker() {
         }
     }, [processSyncItem]);
 
-    // Start sync worker on mount
+    // 🔽 PULL MASTER DATA - Download products & categories from server
+    const pullMasterData = useCallback(async (): Promise<PullResult> => {
+        if (!isSupabaseConfigured() || !supabase) {
+            console.warn('⚠️ Supabase not configured, skipping pull');
+            return { productsUpdated: 0, categoriesUpdated: 0 };
+        }
+
+        if (!navigator.onLine) {
+            console.warn('⚠️ Offline, skipping pull');
+            return { productsUpdated: 0, categoriesUpdated: 0 };
+        }
+
+        console.log('📥 Pulling master data from server...');
+
+        let productsUpdated = 0;
+        let categoriesUpdated = 0;
+
+        try {
+            // Fetch categories from Supabase
+            const { data: serverCategories, error: catError } = await supabase
+                .from('categories')
+                .select('*');
+
+            if (catError) {
+                console.error('Error fetching categories:', catError);
+            } else if (serverCategories && serverCategories.length > 0) {
+                for (const sc of serverCategories) {
+                    const localCategory: Category = {
+                        id: sc.id,
+                        name: sc.name,
+                        icon: sc.icon,
+                        displayOrder: sc.display_order || 0,
+                        isActive: sc.is_active ?? true,
+                        createdAt: new Date(sc.created_at).getTime(),
+                    };
+                    await db.categories.put(localCategory);
+                    categoriesUpdated++;
+                }
+                console.log(`✅ Updated ${categoriesUpdated} categories`);
+            }
+
+            // Fetch products from Supabase
+            const { data: serverProducts, error: prodError } = await supabase
+                .from('products')
+                .select('*');
+
+            if (prodError) {
+                console.error('Error fetching products:', prodError);
+            } else if (serverProducts && serverProducts.length > 0) {
+                for (const sp of serverProducts) {
+                    const localProduct: Product = {
+                        id: sp.id,
+                        name: sp.name,
+                        categoryId: sp.category_id,
+                        basePrice: sp.base_price,
+                        costPrice: sp.cost_price || 0,
+                        stock: sp.stock || 0,
+                        storeId: sp.store_id || 'default',
+                        isAvailable: sp.is_available,
+                        isActive: sp.is_active ?? true,
+                        createdAt: new Date(sp.created_at).getTime(),
+                        updatedAt: Date.now(),
+                    };
+                    // Use put() to upsert - doesn't delete local-only products
+                    await db.products.put(localProduct);
+                    productsUpdated++;
+                }
+                console.log(`✅ Updated ${productsUpdated} products`);
+            }
+
+            setLastPullTime(Date.now());
+            console.log('📥 Pull complete!');
+
+        } catch (error) {
+            console.error('Pull master data error:', error);
+        }
+
+        return { productsUpdated, categoriesUpdated };
+    }, []);
+
+    // Start sync worker on mount + initial pull
     useEffect(() => {
-        // Initial sync attempt
+        // Initial pull on app start
+        pullMasterData();
+
+        // Initial push attempt
         runSyncCycle();
 
-        // Set up interval
+        // Set up interval for push
         intervalRef.current = globalThis.setInterval(runSyncCycle, SYNC_INTERVAL_MS);
 
         // Listen for online event
         const handleOnline = () => {
             console.log('📶 Back online - triggering sync');
-            runSyncCycle();
+            pullMasterData(); // Pull first to get latest data
+            runSyncCycle();   // Then push any pending items
         };
 
         globalThis.addEventListener('online', handleOnline);
@@ -112,17 +203,23 @@ export function useSyncWorker() {
             }
             globalThis.removeEventListener('online', handleOnline);
         };
-    }, [runSyncCycle]);
+    }, [runSyncCycle, pullMasterData]);
 
-    // Manual sync trigger
-    const triggerSync = useCallback(() => {
+    // Manual sync trigger (both push and pull)
+    const triggerSync = useCallback(async () => {
+        await pullMasterData();
         runSyncCycle();
-    }, [runSyncCycle]);
+    }, [runSyncCycle, pullMasterData]);
 
-    return { triggerSync };
+    // Manual pull trigger (pull only)
+    const triggerPull = useCallback(async () => {
+        return await pullMasterData();
+    }, [pullMasterData]);
+
+    return { triggerSync, triggerPull, lastPullTime };
 }
 
-// === SYNC HANDLERS ===
+// === SYNC HANDLERS (PUSH) ===
 
 async function syncTransaction(
     action: string,
@@ -206,7 +303,11 @@ async function syncProduct(
             name: payload.name,
             category_id: payload.categoryId,
             base_price: payload.basePrice,
+            cost_price: payload.costPrice ?? 0,
+            stock: payload.stock ?? 0,
+            store_id: payload.storeId ?? 'default',
             is_available: payload.isAvailable ?? true,
+            is_active: payload.isActive ?? true,
             synced_at: new Date().toISOString(),
         };
 

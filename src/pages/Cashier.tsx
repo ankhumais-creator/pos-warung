@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useCashierStore } from '../lib/store';
 import { db, getProductsWithModifiers, getCurrentShift, addTransaction } from '../lib/db';
-import { Coffee, UtensilsCrossed, CupSoda, Cake, Pizza, ShoppingCart, X, Plus, Minus, LogOut, Search } from 'lucide-react';
+import { Coffee, UtensilsCrossed, CupSoda, Cake, Pizza, ShoppingCart, X, Plus, Minus, LogOut, Search, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import PaymentModal from '../components/PaymentModal';
 import SuccessToast from '../components/SuccessToast';
 import CloseShiftModal from '../components/CloseShiftModal';
@@ -50,13 +51,15 @@ export default function Cashier() {
         const prods = await getProductsWithModifiers();
         const shift = await getCurrentShift();
 
-        setCategories(cats);
-        setProducts(prods);
+        // Filter only active items (soft-delete aware)
+        setCategories(cats.filter(c => c.isActive !== false));
+        setProducts(prods.filter(p => p.isActive !== false));
         setCurrentShift(shift);
 
         // Auto-select first category
-        if (cats.length > 0) {
-            selectCategory(cats[0].id);
+        const activeCats = cats.filter(c => c.isActive !== false);
+        if (activeCats.length > 0) {
+            selectCategory(activeCats[0].id);
         }
     }
 
@@ -243,6 +246,13 @@ export default function Cashier() {
                                 Rp {currentShift?.openingCash.toLocaleString('id-ID')}
                             </div>
                         </div>
+                        <Link
+                            to="/admin"
+                            className="flex items-center gap-2 px-4 py-2 border border-base-200 rounded-md hover:bg-base-100"
+                        >
+                            <Settings size={18} strokeWidth={2} />
+                            Admin
+                        </Link>
                         <button
                             onClick={() => setShowCloseShiftModal(true)}
                             className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white font-semibold rounded-md hover:bg-zinc-800"

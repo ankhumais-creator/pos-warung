@@ -10,6 +10,7 @@ export interface Category {
     name: string;
     icon?: string;
     displayOrder: number;
+    isActive: boolean; // Soft delete flag
     createdAt: number;
 }
 
@@ -18,8 +19,12 @@ export interface Product {
     name: string;
     categoryId: string;
     basePrice: number;
+    costPrice: number; // Modal/COGS
+    stock: number; // Stok tersedia
+    storeId: string; // Multi-outlet support
     image?: string;
     isAvailable: boolean;
+    isActive: boolean; // Soft delete flag
     createdAt: number;
     updatedAt: number;
 }
