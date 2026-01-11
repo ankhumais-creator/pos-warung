@@ -2,11 +2,13 @@
 import { useEffect, useState } from 'react';
 import { useCashierStore } from '../lib/store';
 import { db, getProductsWithModifiers, getCurrentShift, addTransaction } from '../lib/db';
+import type { Transaction } from '../lib/db';
 import { Coffee, UtensilsCrossed, CupSoda, Cake, Pizza, ShoppingCart, X, Plus, Minus, LogOut, Search, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PaymentModal from '../components/PaymentModal';
 import SuccessToast from '../components/SuccessToast';
 import CloseShiftModal from '../components/CloseShiftModal';
+import { printDebtReceipt } from '../lib/receipt';
 
 const CATEGORY_ICONS: Record<string, any> = {
     'cat_1': Coffee,
@@ -154,7 +156,12 @@ export default function Cashier() {
     };
 
     // Handle payment completion
-    const handlePaymentComplete = async (amountPaid: number, change: number) => {
+    const handlePaymentComplete = async (paymentData: {
+        mode: 'cash' | 'kasbon';
+        amountPaid: number;
+        change: number;
+        customerName?: string;
+    }) => {
         if (!currentShift) return;
 
         // Pre-process cart items before try block (using loops to avoid deep nesting)
@@ -198,20 +205,31 @@ export default function Cashier() {
         }
 
         try {
+            const isKasbon = paymentData.mode === 'kasbon';
 
             // Save transaction
-            await addTransaction({
+            const transaction = await addTransaction({
                 shiftId: currentShift.id,
                 transactionNumber: `TRX-${new Date().toISOString().split('T')[0].replaceAll('-', '')}-${Date.now().toString().slice(-3)}`,
                 items,
                 subtotal: cartTotal,
                 tax: 0,
                 total: cartTotal,
-                paymentMethod: 'cash',
-                cashReceived: amountPaid,
-                cashChange: change,
+                paymentMethod: paymentData.mode,
+                customerName: isKasbon ? paymentData.customerName : undefined,
+                cashReceived: isKasbon ? 0 : paymentData.amountPaid,
+                cashChange: isKasbon ? 0 : paymentData.change,
                 status: 'completed',
             });
+
+            // Print debt receipt if kasbon
+            if (isKasbon && paymentData.customerName) {
+                printDebtReceipt({
+                    transaction: transaction as Transaction,
+                    customerName: paymentData.customerName,
+                    cashierName: currentShift.openedBy,
+                });
+            }
 
             // Clear cart
             useCashierStore.getState().clearCart();
@@ -232,7 +250,7 @@ export default function Cashier() {
             <header className="bg-white border-b border-base-200 px-6 py-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-base-900">POS Warung</h1>
+                        <h1 className="text-2xl font-bold text-base-900">Toko Pakan Ainun</h1>
                         {currentShift && (
                             <p className="text-sm text-slate-600 mt-1">
                                 Shift: {currentShift.shiftNumber} • {currentShift.openedBy}
@@ -371,7 +389,7 @@ export default function Cashier() {
                     )}
                 </main>
 
-                {/* 3. CART & MODIFIER PANEL (Cols 9-12) */}
+                {/* 3. CART & SATUAN PANEL (Cols 9-12) */}
                 <aside className="col-span-4 bg-white border-l border-base-200 h-full flex flex-col overflow-hidden">
                     {/* Cart Items - Scrollable Area */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -438,7 +456,7 @@ export default function Cashier() {
                                 ))}
                             </div>
 
-                            {/* Modifier Panel (Contextual) */}
+                            {/* Satuan Panel (Contextual) */}
                             {selectedProduct && (
                                 <div className="border-t-2 border-base-200 pt-4">
                                     <div className="flex items-center justify-between mb-3">
@@ -455,7 +473,7 @@ export default function Cashier() {
                                         Rp {selectedProduct.basePrice.toLocaleString('id-ID')}
                                     </p>
 
-                                    {/* Modifier Groups */}
+                                    {/* Pilih Satuan */}
                                     <div className="space-y-4 mb-4">
                                         {selectedProduct.modifierGroups.map((group) => (
                                             <div key={group.id}>

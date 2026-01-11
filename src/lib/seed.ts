@@ -1,5 +1,5 @@
-// 🌱 SEED DATABASE - 50 Dummy Products untuk Testing Performa
-// Fokus: F&B (Cafe/Warung) dengan modifier kompleks
+// 🌱 SEED DATABASE - Produk Pakan Ternak untuk Toko Pakan Ainun
+// Fokus: Retail/Grosir dengan sistem Satuan (Karung/Eceran)
 
 import { db, type Category, type Product, type ModifierGroup, type Modifier, type ShiftLog } from './db';
 import { nanoid } from 'nanoid';
@@ -16,11 +16,11 @@ export async function seedDatabase() {
 
     // ==================== CATEGORIES ====================
     const categories: Category[] = [
-        { id: 'cat_1', name: 'Kopi', icon: '☕', displayOrder: 1, isActive: true, createdAt: now },
-        { id: 'cat_2', name: 'Teh', icon: '🍵', displayOrder: 2, isActive: true, createdAt: now },
-        { id: 'cat_3', name: 'Jus & Smoothie', icon: '🥤', displayOrder: 3, isActive: true, createdAt: now },
-        { id: 'cat_4', name: 'Makanan Berat', icon: '🍜', displayOrder: 4, isActive: true, createdAt: now },
-        { id: 'cat_5', name: 'Snack', icon: '🍰', displayOrder: 5, isActive: true, createdAt: now },
+        { id: 'cat_1', name: 'Pakan Ayam', icon: '🐔', displayOrder: 1, isActive: true, createdAt: now },
+        { id: 'cat_2', name: 'Pakan Itik', icon: '🦆', displayOrder: 2, isActive: true, createdAt: now },
+        { id: 'cat_3', name: 'Pakan Sapi', icon: '🐄', displayOrder: 3, isActive: true, createdAt: now },
+        { id: 'cat_4', name: 'Konsentrat', icon: '📦', displayOrder: 4, isActive: true, createdAt: now },
+        { id: 'cat_5', name: 'Dedak & Bekatul', icon: '🌾', displayOrder: 5, isActive: true, createdAt: now },
     ];
 
     await db.categories.bulkAdd(categories);
@@ -33,7 +33,7 @@ export async function seedDatabase() {
         categoryId,
         basePrice,
         costPrice,
-        stock: 100, // Default stock
+        stock: 500, // Default stock dalam kg
         storeId: 'default',
         isAvailable: true,
         isActive: true,
@@ -42,190 +42,129 @@ export async function seedDatabase() {
     });
 
     const products: Product[] = [
-        // KOPI (15 items) - costPrice ~60% of basePrice
-        createProduct('prod_1', 'Es Kopi Susu', 'cat_1', 15000, 9000),
-        createProduct('prod_2', 'Americano', 'cat_1', 18000, 10000),
-        createProduct('prod_3', 'Cappuccino', 'cat_1', 20000, 12000),
-        createProduct('prod_4', 'Latte', 'cat_1', 22000, 13000),
-        createProduct('prod_5', 'Mocha', 'cat_1', 24000, 14000),
-        createProduct('prod_6', 'Affogato', 'cat_1', 28000, 17000),
-        createProduct('prod_7', 'Kopi Tubruk', 'cat_1', 10000, 5000),
-        createProduct('prod_8', 'Kopi Susu Gula Aren', 'cat_1', 18000, 11000),
-        createProduct('prod_9', 'Vietnamese Coffee', 'cat_1', 20000, 12000),
-        createProduct('prod_10', 'Kopi Jahe', 'cat_1', 16000, 10000),
-        createProduct('prod_11', 'Caramel Macchiato', 'cat_1', 26000, 16000),
-        createProduct('prod_12', 'Espresso', 'cat_1', 15000, 8000),
-        createProduct('prod_13', 'Flat White', 'cat_1', 23000, 14000),
-        createProduct('prod_14', 'Kopi Kelapa', 'cat_1', 19000, 11000),
-        createProduct('prod_15', 'Irish Coffee', 'cat_1', 30000, 18000),
+        // PAKAN AYAM (10 items)
+        createProduct('prod_1', 'Pakan Ayam 511', 'cat_1', 10000, 8500),
+        createProduct('prod_2', 'Pakan Ayam 512', 'cat_1', 10500, 9000),
+        createProduct('prod_3', 'Pakan Ayam 521', 'cat_1', 9500, 8000),
+        createProduct('prod_4', 'Pakan Ayam 522', 'cat_1', 9800, 8300),
+        createProduct('prod_5', 'Pakan Ayam 551', 'cat_1', 11000, 9500),
+        createProduct('prod_6', 'Pakan Ayam Broiler Starter', 'cat_1', 12000, 10200),
+        createProduct('prod_7', 'Pakan Ayam Broiler Finisher', 'cat_1', 11500, 9800),
+        createProduct('prod_8', 'Pakan Ayam Layer', 'cat_1', 10000, 8500),
+        createProduct('prod_9', 'Pakan Ayam Kampung', 'cat_1', 9000, 7500),
+        createProduct('prod_10', 'Pakan Ayam DOC', 'cat_1', 13000, 11000),
 
-        // TEH (10 items)
-        createProduct('prod_16', 'Es Teh Manis', 'cat_2', 8000, 3000),
-        createProduct('prod_17', 'Thai Tea', 'cat_2', 15000, 8000),
-        createProduct('prod_18', 'Lemon Tea', 'cat_2', 12000, 6000),
-        createProduct('prod_19', 'Green Tea Latte', 'cat_2', 18000, 10000),
-        createProduct('prod_20', 'Teh Tarik', 'cat_2', 14000, 7000),
-        createProduct('prod_21', 'Jasmine Tea', 'cat_2', 10000, 4000),
-        createProduct('prod_22', 'Oolong Tea', 'cat_2', 12000, 6000),
-        createProduct('prod_23', 'Teh Poci', 'cat_2', 7000, 2500),
-        createProduct('prod_24', 'Milk Tea', 'cat_2', 16000, 9000),
-        createProduct('prod_25', 'Earl Grey', 'cat_2', 11000, 5000),
+        // PAKAN ITIK (5 items)
+        createProduct('prod_11', 'Pakan Itik Starter', 'cat_2', 11000, 9300),
+        createProduct('prod_12', 'Pakan Itik Grower', 'cat_2', 10500, 8900),
+        createProduct('prod_13', 'Pakan Itik Layer', 'cat_2', 10000, 8500),
+        createProduct('prod_14', 'Pakan Itik Petelur Super', 'cat_2', 11500, 9800),
+        createProduct('prod_15', 'Pakan Itik Pedaging', 'cat_2', 10800, 9200),
 
-        // JUS & SMOOTHIE (10 items)
-        createProduct('prod_26', 'Jus Jeruk', 'cat_3', 15000, 8000),
-        createProduct('prod_27', 'Jus Alpukat', 'cat_3', 18000, 10000),
-        createProduct('prod_28', 'Jus Mangga', 'cat_3', 17000, 9000),
-        createProduct('prod_29', 'Smoothie Bowl', 'cat_3', 35000, 20000),
-        createProduct('prod_30', 'Green Smoothie', 'cat_3', 25000, 15000),
-        createProduct('prod_31', 'Jus Wortel', 'cat_3', 14000, 7000),
-        createProduct('prod_32', 'Jus Semangka', 'cat_3', 12000, 6000),
-        createProduct('prod_33', 'Jus Melon', 'cat_3', 13000, 7000),
-        createProduct('prod_34', 'Banana Smoothie', 'cat_3', 20000, 12000),
-        createProduct('prod_35', 'Berry Blast', 'cat_3', 28000, 16000),
+        // PAKAN SAPI (5 items)
+        createProduct('prod_16', 'Pakan Sapi Potong', 'cat_3', 8000, 6500),
+        createProduct('prod_17', 'Pakan Sapi Perah', 'cat_3', 9000, 7500),
+        createProduct('prod_18', 'Pakan Sapi Penggemukan', 'cat_3', 8500, 7000),
+        createProduct('prod_19', 'Pakan Pedet (Anak Sapi)', 'cat_3', 10000, 8500),
+        createProduct('prod_20', 'Rumput Fermentasi', 'cat_3', 5000, 3500),
 
-        // MAKANAN BERAT (10 items)
-        createProduct('prod_36', 'Nasi Goreng', 'cat_4', 25000, 12000),
-        createProduct('prod_37', 'Mie Goreng', 'cat_4', 23000, 11000),
-        createProduct('prod_38', 'Nasi Ayam Geprek', 'cat_4', 28000, 14000),
-        createProduct('prod_39', 'Nasi Rendang', 'cat_4', 35000, 18000),
-        createProduct('prod_40', 'Soto Ayam', 'cat_4', 22000, 11000),
-        createProduct('prod_41', 'Gado-gado', 'cat_4', 20000, 10000),
-        createProduct('prod_42', 'Nasi Uduk', 'cat_4', 18000, 9000),
-        createProduct('prod_43', 'Pasta Carbonara', 'cat_4', 32000, 16000),
-        createProduct('prod_44', 'Fried Rice Special', 'cat_4', 30000, 15000),
-        createProduct('prod_45', 'Chicken Katsu Don', 'cat_4', 35000, 18000),
+        // KONSENTRAT (5 items)
+        createProduct('prod_21', 'Konsentrat Ayam Super', 'cat_4', 15000, 12500),
+        createProduct('prod_22', 'Konsentrat Sapi 148', 'cat_4', 12000, 10000),
+        createProduct('prod_23', 'Konsentrat Kambing', 'cat_4', 11000, 9200),
+        createProduct('prod_24', 'Mineral Mix Unggas', 'cat_4', 20000, 17000),
+        createProduct('prod_25', 'Vitamin Ternak Serbuk', 'cat_4', 25000, 21000),
 
-        // SNACK (5 items)
-        createProduct('prod_46', 'Pisang Goreng', 'cat_5', 10000, 5000),
-        createProduct('prod_47', 'French Fries', 'cat_5', 15000, 8000),
-        createProduct('prod_48', 'Croissant', 'cat_5', 18000, 10000),
-        createProduct('prod_49', 'Brownie', 'cat_5', 20000, 12000),
-        createProduct('prod_50', 'Donut', 'cat_5', 12000, 6000),
+        // DEDAK & BEKATUL (5 items)
+        createProduct('prod_26', 'Dedak Padi Halus', 'cat_5', 5000, 4000),
+        createProduct('prod_27', 'Dedak Padi Kasar', 'cat_5', 4500, 3500),
+        createProduct('prod_28', 'Bekatul Premium', 'cat_5', 6000, 5000),
+        createProduct('prod_29', 'Ampas Tahu', 'cat_5', 3000, 2000),
+        createProduct('prod_30', 'Pollard (Dedak Gandum)', 'cat_5', 7000, 5800),
     ];
 
     await db.products.bulkAdd(products);
 
-    // ==================== MODIFIER GROUPS & MODIFIERS ====================
+    // ==================== MODIFIER GROUPS (SATUAN) ====================
     const modifierGroups: ModifierGroup[] = [];
     const modifiers: Modifier[] = [];
 
-    // Helper function untuk create modifier group
-    function createModifierGroup(
+    // Helper function untuk create modifier group (Satuan)
+    function createSatuanGroup(
         productId: string,
-        name: string,
-        selectionType: 'single' | 'multiple',
-        isRequired: boolean,
-        modifierOptions: Array<{ name: string; price: number; isDefault?: boolean; isAvailable?: boolean }>
+        satuanOptions: Array<{ name: string; price: number; unitMultiplier: number; isDefault?: boolean }>
     ) {
         const groupId = nanoid();
-        const displayOrder = modifierGroups.filter(g => g.productId === productId).length + 1;
 
         modifierGroups.push({
             id: groupId,
             productId,
-            name,
-            selectionType,
-            minSelection: isRequired ? 1 : 0,
-            maxSelection: selectionType === 'single' ? 1 : 99,
-            isRequired,
-            displayOrder,
+            name: 'Pilih Satuan',
+            selectionType: 'single',
+            minSelection: 1,
+            maxSelection: 1,
+            isRequired: true,
+            displayOrder: 1,
         });
 
-        modifierOptions.forEach((opt, idx) => {
+        satuanOptions.forEach((opt, idx) => {
             modifiers.push({
                 id: nanoid(),
                 modifierGroupId: groupId,
                 name: opt.name,
                 priceAdjustment: opt.price,
+                unitMultiplier: opt.unitMultiplier,
                 isDefault: opt.isDefault ?? false,
-                isAvailable: opt.isAvailable ?? true,
+                isAvailable: true,
                 displayOrder: idx + 1,
             });
         });
     }
 
-    // Apply modifiers ke semua kopi (15 products)
-    const coffeeIds = products.filter(p => p.categoryId === 'cat_1').map(p => p.id);
-    coffeeIds.forEach(id => {
-        // Ukuran (Required)
-        createModifierGroup(id, 'Ukuran', 'single', true, [
-            { name: 'Regular', price: 0, isDefault: true },
-            { name: 'Large', price: 5000 },
-            { name: 'Extra Large', price: 10000 },
-        ]);
-
-        // Level Es
-        createModifierGroup(id, 'Es', 'single', false, [
-            { name: 'Normal', price: 0, isDefault: true },
-            { name: 'Less Ice', price: 0 },
-            { name: 'No Ice', price: 0 },
-        ]);
-
-        // Level Gula
-        createModifierGroup(id, 'Gula', 'single', false, [
-            { name: 'Normal', price: 0, isDefault: true },
-            { name: 'Less Sugar', price: 0 },
-            { name: 'No Sugar', price: 0 },
-            { name: 'Extra Sweet', price: 2000 },
-        ]);
-
-        // Tambahan (Multiple)
-        createModifierGroup(id, 'Tambahan', 'multiple', false, [
-            { name: 'Extra Shot', price: 5000 },
-            { name: 'Whipped Cream', price: 3000 },
-            { name: 'Vanilla Syrup', price: 3000 },
-            { name: 'Caramel Drizzle', price: 4000 },
-            { name: 'Hazelnut', price: 3000 },
-            { name: 'Cinnamon', price: 2000 },
-            { name: 'Chocolate Chips', price: 4000, isAvailable: false }, // Contoh: Habis stock!
+    // Apply satuan ke semua pakan ayam
+    const pakanAyamIds = products.filter(p => p.categoryId === 'cat_1').map(p => p.id);
+    pakanAyamIds.forEach(id => {
+        createSatuanGroup(id, [
+            { name: 'Karung (50kg)', price: 450000, unitMultiplier: 50, isDefault: true },
+            { name: 'Eceran (1kg)', price: 10000, unitMultiplier: 1 },
         ]);
     });
 
-    // Apply modifiers ke teh (10 products)
-    const teaIds = products.filter(p => p.categoryId === 'cat_2').map(p => p.id);
-    teaIds.forEach(id => {
-        createModifierGroup(id, 'Ukuran', 'single', true, [
-            { name: 'Regular', price: 0, isDefault: true },
-            { name: 'Large', price: 3000 },
-        ]);
-
-        createModifierGroup(id, 'Es', 'single', false, [
-            { name: 'Dingin', price: 0, isDefault: true },
-            { name: 'Hangat', price: 0 },
-            { name: 'Panas', price: 0 },
-        ]);
-
-        createModifierGroup(id, 'Topping', 'multiple', false, [
-            { name: 'Bubble', price: 5000 },
-            { name: 'Jelly', price: 4000 },
-            { name: 'Pudding', price: 5000 },
-            { name: 'Aloe Vera', price: 4000 },
+    // Apply satuan ke pakan itik
+    const pakanItikIds = products.filter(p => p.categoryId === 'cat_2').map(p => p.id);
+    pakanItikIds.forEach(id => {
+        createSatuanGroup(id, [
+            { name: 'Karung (50kg)', price: 500000, unitMultiplier: 50, isDefault: true },
+            { name: 'Eceran (1kg)', price: 11000, unitMultiplier: 1 },
         ]);
     });
 
-    // Apply modifiers ke makanan berat (nasi goreng, mie goreng, dll)
-    const foodIds = products.filter(p => p.categoryId === 'cat_4').map(p => p.id);
-    foodIds.forEach(id => {
-        createModifierGroup(id, 'Level Pedas', 'single', false, [
-            { name: 'Tidak Pedas', price: 0, isDefault: true },
-            { name: 'Sedang', price: 0 },
-            { name: 'Pedas', price: 0 },
-            { name: 'Extra Pedas', price: 2000 },
+    // Apply satuan ke pakan sapi
+    const pakanSapiIds = products.filter(p => p.categoryId === 'cat_3').map(p => p.id);
+    pakanSapiIds.forEach(id => {
+        createSatuanGroup(id, [
+            { name: 'Karung (50kg)', price: 380000, unitMultiplier: 50, isDefault: true },
+            { name: 'Karung (25kg)', price: 195000, unitMultiplier: 25 },
+            { name: 'Eceran (1kg)', price: 8000, unitMultiplier: 1 },
         ]);
+    });
 
-        createModifierGroup(id, 'Tambahan Lauk', 'multiple', false, [
-            { name: 'Telur Ceplok', price: 5000 },
-            { name: 'Telur Dadar', price: 5000 },
-            { name: 'Ayam Goreng', price: 10000 },
-            { name: 'Tempe Goreng', price: 3000 },
-            { name: 'Tahu Goreng', price: 3000 },
-            { name: 'Kerupuk', price: 2000 },
+    // Apply satuan ke konsentrat
+    const konsentratIds = products.filter(p => p.categoryId === 'cat_4').map(p => p.id);
+    konsentratIds.forEach(id => {
+        createSatuanGroup(id, [
+            { name: 'Karung (50kg)', price: 700000, unitMultiplier: 50, isDefault: true },
+            { name: 'Karung (25kg)', price: 360000, unitMultiplier: 25 },
+            { name: 'Eceran (1kg)', price: 15000, unitMultiplier: 1 },
         ]);
+    });
 
-        createModifierGroup(id, 'Porsi Nasi', 'single', false, [
-            { name: 'Normal', price: 0, isDefault: true },
-            { name: 'Tambah Nasi', price: 5000 },
-            { name: 'Tanpa Nasi', price: -3000 },
+    // Apply satuan ke dedak
+    const dedakIds = products.filter(p => p.categoryId === 'cat_5').map(p => p.id);
+    dedakIds.forEach(id => {
+        createSatuanGroup(id, [
+            { name: 'Karung (25kg)', price: 100000, unitMultiplier: 25, isDefault: true },
+            { name: 'Eceran (1kg)', price: 5000, unitMultiplier: 1 },
         ]);
     });
 
@@ -236,7 +175,7 @@ export async function seedDatabase() {
     const initialShift: ShiftLog = {
         id: nanoid(),
         shiftNumber: `SHIFT-${new Date().toISOString().slice(0, 10)}-001`,
-        openedBy: 'Kasir Demo',
+        openedBy: 'Kasir Ainun',
         openedAt: now,
         openingCash: 500000, // Modal awal Rp 500.000
         totalTransactions: 0,
@@ -249,7 +188,8 @@ export async function seedDatabase() {
     console.log('✅ Database seeded successfully!');
     console.log(`   - ${categories.length} categories`);
     console.log(`   - ${products.length} products`);
-    console.log(`   - ${modifierGroups.length} modifier groups`);
-    console.log(`   - ${modifiers.length} modifiers`);
+    console.log(`   - ${modifierGroups.length} satuan groups`);
+    console.log(`   - ${modifiers.length} satuan options`);
     console.log(`   - 1 active shift`);
 }
+

@@ -43,10 +43,11 @@ export interface ModifierGroup {
 export interface Modifier {
     id: string;
     modifierGroupId: string;
-    name: string; // "Large", "Less Ice", "Extra Shot"
-    priceAdjustment: number; // +5000, 0, +3000
+    name: string; // "Karung (50kg)", "Eceran (1kg)"
+    priceAdjustment: number; // Harga satuan ini (bisa override base price atau tambahan)
+    unitMultiplier: number; // Konversi ke unit terkecil: Karung=50, Eceran=1
     isDefault: boolean;
-    isAvailable: boolean; // ⚠️ CRITICAL: Track stock untuk topping (e.g., telur habis)
+    isAvailable: boolean; // Track stock untuk satuan ini
     displayOrder: number;
 }
 
@@ -57,7 +58,8 @@ export interface Transaction {
     subtotal: number;
     tax: number;
     total: number;
-    paymentMethod: 'cash' | 'qris' | 'debit' | 'credit';
+    paymentMethod: 'cash' | 'qris' | 'debit' | 'credit' | 'kasbon';
+    customerName?: string; // Nama pelanggan (wajib untuk kasbon)
     cashReceived?: number; // Uang yang diterima dari customer
     cashChange?: number; // Kembalian
     status: 'completed' | 'pending' | 'cancelled';

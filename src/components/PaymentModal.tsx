@@ -1,16 +1,25 @@
-// 💳 PAYMENT MODAL - Kalkulator pembayaran dan kembalian
+// 💳 PAYMENT MODAL - Kalkulator pembayaran dan kembalian + Kasbon
 import { useState, useEffect } from 'react';
-import { X, Check, Banknote } from 'lucide-react';
+import { X, Check, Banknote, CreditCard } from 'lucide-react';
+
+type PaymentMode = 'cash' | 'kasbon';
 
 interface PaymentModalProps {
     total: number;
     onClose: () => void;
-    onPaymentComplete: (amountPaid: number, change: number) => void;
+    onPaymentComplete: (paymentData: {
+        mode: PaymentMode;
+        amountPaid: number;
+        change: number;
+        customerName?: string;
+    }) => void;
 }
 
 export default function PaymentModal({ total, onClose, onPaymentComplete }: Readonly<PaymentModalProps>) {
+    const [paymentMode, setPaymentMode] = useState<PaymentMode>('cash');
     const [amountPaid, setAmountPaid] = useState('');
     const [change, setChange] = useState(0);
+    const [customerName, setCustomerName] = useState('');
 
     const numericAmount = Number.parseInt(amountPaid.replaceAll(/\D/g, '')) || 0;
 
@@ -18,7 +27,9 @@ export default function PaymentModal({ total, onClose, onPaymentComplete }: Read
         setChange(Math.max(0, numericAmount - total));
     }, [numericAmount, total]);
 
-    const isPaymentValid = numericAmount >= total;
+    const isPaymentValid = paymentMode === 'cash'
+        ? numericAmount >= total
+        : customerName.trim().length > 0;
 
     const handleNumpadClick = (value: string) => {
         if (value === 'C') {
@@ -41,9 +52,14 @@ export default function PaymentModal({ total, onClose, onPaymentComplete }: Read
     };
 
     const handleConfirm = () => {
-        if (isPaymentValid) {
-            onPaymentComplete(numericAmount, change);
-        }
+        if (!isPaymentValid) return;
+
+        onPaymentComplete({
+            mode: paymentMode,
+            amountPaid: paymentMode === 'cash' ? numericAmount : 0,
+            change: paymentMode === 'cash' ? change : 0,
+            customerName: paymentMode === 'kasbon' ? customerName.trim() : undefined,
+        });
     };
 
     // Generate smart suggestions based on total
@@ -62,7 +78,7 @@ export default function PaymentModal({ total, onClose, onPaymentComplete }: Read
             }
         });
 
-        return suggestions.slice(0, 4).sort((a, b) => a - b);
+        return suggestions.slice(0, 3).sort((a, b) => a - b);
     };
 
     const suggestions = generateSuggestions();
@@ -84,6 +100,30 @@ export default function PaymentModal({ total, onClose, onPaymentComplete }: Read
                     </button>
                 </div>
 
+                {/* Payment Mode Tabs */}
+                <div className="flex border-b border-zinc-200">
+                    <button
+                        onClick={() => setPaymentMode('cash')}
+                        className={`flex-1 py-4 px-6 font-semibold flex items-center justify-center gap-2 transition-colors ${paymentMode === 'cash'
+                                ? 'bg-zinc-100 text-zinc-900 border-b-2 border-zinc-900'
+                                : 'text-zinc-500 hover:bg-zinc-50'
+                            }`}
+                    >
+                        <Banknote size={20} />
+                        Tunai
+                    </button>
+                    <button
+                        onClick={() => setPaymentMode('kasbon')}
+                        className={`flex-1 py-4 px-6 font-semibold flex items-center justify-center gap-2 transition-colors ${paymentMode === 'kasbon'
+                                ? 'bg-amber-50 text-amber-700 border-b-2 border-amber-600'
+                                : 'text-zinc-500 hover:bg-zinc-50'
+                            }`}
+                    >
+                        <CreditCard size={20} />
+                        Kasbon (Utang)
+                    </button>
+                </div>
+
                 <div className="flex">
                     {/* Left: Summary */}
                     <div className="w-1/2 p-6 border-r border-zinc-200">
@@ -95,80 +135,121 @@ export default function PaymentModal({ total, onClose, onPaymentComplete }: Read
                             </p>
                         </div>
 
-                        {/* Amount Paid Input */}
-                        <div className="mb-4">
-                            <p className="text-sm text-zinc-500 mb-1">Uang Diterima</p>
-                            <div className="bg-zinc-100 border-2 border-zinc-300 rounded-lg p-4">
-                                <p className="text-3xl font-bold text-zinc-900 text-right">
-                                    Rp {numericAmount.toLocaleString('id-ID') || '0'}
-                                </p>
-                            </div>
-                        </div>
+                        {paymentMode === 'cash' ? (
+                            <>
+                                {/* Amount Paid Input */}
+                                <div className="mb-4">
+                                    <p className="text-sm text-zinc-500 mb-1">Uang Diterima</p>
+                                    <div className="bg-zinc-100 border-2 border-zinc-300 rounded-lg p-4">
+                                        <p className="text-3xl font-bold text-zinc-900 text-right">
+                                            Rp {numericAmount.toLocaleString('id-ID') || '0'}
+                                        </p>
+                                    </div>
+                                </div>
 
-                        {/* Change */}
-                        <div className={`p-4 rounded-lg ${isPaymentValid ? 'bg-emerald-50 border border-emerald-200' : 'bg-zinc-100'}`}>
-                            <p className="text-sm text-zinc-500 mb-1">Kembalian</p>
-                            <p className={`text-3xl font-bold ${isPaymentValid ? 'text-emerald-700' : 'text-zinc-400'}`}>
-                                Rp {change.toLocaleString('id-ID')}
-                            </p>
-                        </div>
+                                {/* Change */}
+                                <div className={`p-4 rounded-lg ${isPaymentValid ? 'bg-emerald-50 border border-emerald-200' : 'bg-zinc-100'}`}>
+                                    <p className="text-sm text-zinc-500 mb-1">Kembalian</p>
+                                    <p className={`text-3xl font-bold ${isPaymentValid ? 'text-emerald-700' : 'text-zinc-400'}`}>
+                                        Rp {change.toLocaleString('id-ID')}
+                                    </p>
+                                </div>
 
-                        {/* Not enough warning */}
-                        {numericAmount > 0 && !isPaymentValid && (
-                            <p className="text-rose-600 text-sm mt-3">
-                                Kurang Rp {(total - numericAmount).toLocaleString('id-ID')}
-                            </p>
+                                {/* Not enough warning */}
+                                {numericAmount > 0 && !isPaymentValid && (
+                                    <p className="text-rose-600 text-sm mt-3">
+                                        Kurang Rp {(total - numericAmount).toLocaleString('id-ID')}
+                                    </p>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                {/* Kasbon Mode */}
+                                <div className="mb-4">
+                                    <p className="text-sm text-zinc-500 mb-1">Nama Pelanggan <span className="text-rose-500">*</span></p>
+                                    <input
+                                        type="text"
+                                        value={customerName}
+                                        onChange={(e) => setCustomerName(e.target.value)}
+                                        placeholder="Masukkan nama pengutang..."
+                                        className="w-full px-4 py-3 border-2 border-amber-300 rounded-lg text-lg font-semibold focus:outline-none focus:border-amber-500"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                                    <p className="text-sm text-amber-700 mb-1">⚠️ Nota Kasbon</p>
+                                    <p className="text-sm text-amber-600">
+                                        Struk akan dicetak dengan kolom tanda tangan penerima sebagai bukti utang.
+                                    </p>
+                                </div>
+                            </>
                         )}
                     </div>
 
-                    {/* Right: Numpad */}
+                    {/* Right: Numpad (only for cash) */}
                     <div className="w-1/2 p-6">
-                        {/* Quick Suggestions */}
-                        <div className="grid grid-cols-2 gap-2 mb-4">
-                            <button
-                                onClick={handleExactAmount}
-                                className="py-3 px-4 bg-zinc-100 hover:bg-zinc-200 rounded-md font-semibold text-zinc-700"
-                            >
-                                Uang Pas
-                            </button>
-                            {suggestions.slice(0, 3).map((amount) => (
-                                <button
-                                    key={amount}
-                                    onClick={() => handleQuickAmount(amount)}
-                                    className="py-3 px-4 bg-zinc-100 hover:bg-zinc-200 rounded-md font-semibold text-zinc-700"
-                                >
-                                    {(amount / 1000).toLocaleString('id-ID')}K
-                                </button>
-                            ))}
-                        </div>
+                        {paymentMode === 'cash' ? (
+                            <>
+                                {/* Quick Suggestions */}
+                                <div className="grid grid-cols-2 gap-2 mb-4">
+                                    <button
+                                        onClick={handleExactAmount}
+                                        className="py-3 px-4 bg-zinc-100 hover:bg-zinc-200 rounded-md font-semibold text-zinc-700"
+                                    >
+                                        Uang Pas
+                                    </button>
+                                    {suggestions.map((amount) => (
+                                        <button
+                                            key={amount}
+                                            onClick={() => handleQuickAmount(amount)}
+                                            className="py-3 px-4 bg-zinc-100 hover:bg-zinc-200 rounded-md font-semibold text-zinc-700"
+                                        >
+                                            {(amount / 1000).toLocaleString('id-ID')}K
+                                        </button>
+                                    ))}
+                                </div>
 
-                        {/* Numpad */}
-                        <div className="grid grid-cols-3 gap-2">
-                            {['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '000'].map((num) => (
-                                <button
-                                    key={num}
-                                    onClick={() => handleNumpadClick(num)}
-                                    className="py-4 bg-zinc-200 hover:bg-zinc-300 rounded-md text-xl font-bold text-zinc-900"
-                                >
-                                    {num}
-                                </button>
-                            ))}
-                            <button
-                                onClick={() => handleNumpadClick('C')}
-                                className="py-4 bg-rose-100 hover:bg-rose-200 rounded-md text-xl font-bold text-rose-700 col-span-3"
-                            >
-                                HAPUS
-                            </button>
-                        </div>
+                                {/* Numpad */}
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '000'].map((num) => (
+                                        <button
+                                            key={num}
+                                            onClick={() => handleNumpadClick(num)}
+                                            className="py-4 bg-zinc-200 hover:bg-zinc-300 rounded-md text-xl font-bold text-zinc-900"
+                                        >
+                                            {num}
+                                        </button>
+                                    ))}
+                                    <button
+                                        onClick={() => handleNumpadClick('C')}
+                                        className="py-4 bg-rose-100 hover:bg-rose-200 rounded-md text-xl font-bold text-rose-700 col-span-3"
+                                    >
+                                        HAPUS
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-center">
+                                <CreditCard size={64} className="text-amber-400 mb-4" />
+                                <p className="text-lg font-semibold text-zinc-700 mb-2">Mode Kasbon</p>
+                                <p className="text-sm text-zinc-500">
+                                    Isi nama pelanggan di sebelah kiri, lalu klik tombol "Simpan Kasbon"
+                                </p>
+                            </div>
+                        )}
 
                         {/* Confirm Button */}
                         <button
                             onClick={handleConfirm}
                             disabled={!isPaymentValid}
-                            className="w-full mt-4 bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-5 rounded-md text-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`w-full mt-4 font-bold py-5 rounded-md text-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${paymentMode === 'kasbon'
+                                    ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                    : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                                }`}
                         >
                             <Check size={24} strokeWidth={2} />
-                            BAYAR & SELESAI
+                            {paymentMode === 'kasbon' ? 'SIMPAN KASBON' : 'BAYAR & SELESAI'}
                         </button>
                     </div>
                 </div>
@@ -176,3 +257,4 @@ export default function PaymentModal({ total, onClose, onPaymentComplete }: Read
         </div>
     );
 }
+

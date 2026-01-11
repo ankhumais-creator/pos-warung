@@ -9,7 +9,7 @@ interface ReceiptConfig {
 }
 
 const DEFAULT_CONFIG: ReceiptConfig = {
-    storeName: 'POS Warung',
+    storeName: 'Toko Pakan Ainun',
     storeAddress: 'Jl. Contoh No. 123, Kota',
     storePhone: '08123456789',
     footer: 'Terima Kasih atas Kunjungan Anda!',
@@ -416,3 +416,246 @@ export function printZReport(
         }, 300);
     }
 }
+
+// Debt Receipt data interface
+export interface DebtReceiptData {
+    transaction: Transaction;
+    customerName: string;
+    cashierName: string;
+}
+
+/**
+ * Generate Debt Receipt (Nota Kasbon) HTML
+ */
+export function generateDebtReceiptHTML(
+    data: DebtReceiptData,
+    config: ReceiptConfig = DEFAULT_CONFIG
+): string {
+    const { transaction, customerName, cashierName } = data;
+
+    const items = transaction.items.map((item: TransactionItem) => {
+        const modText = item.selectedModifiers.length > 0
+            ? item.selectedModifiers.map(m => m.modifierName).join(', ')
+            : '';
+
+        return `
+            <tr>
+                <td class="item-name">
+                    ${truncate(item.productName, 20)}
+                    ${modText ? `<br><small>${truncate(modText, 18)}</small>` : ''}
+                </td>
+                <td class="item-qty">${item.quantity}x</td>
+                <td class="item-price">${formatRp(item.itemTotal)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Nota Kasbon #${transaction.transactionNumber}</title>
+            <style>
+                @page {
+                    size: 58mm auto;
+                    margin: 0;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    font-family: 'Courier New', monospace;
+                    font-size: 11px;
+                    width: 58mm;
+                    padding: 4mm;
+                    line-height: 1.3;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 6px;
+                    margin-bottom: 6px;
+                }
+                .debt-badge {
+                    background: #000;
+                    color: #fff;
+                    font-size: 14px;
+                    font-weight: bold;
+                    padding: 4px 8px;
+                    margin-bottom: 4px;
+                    display: inline-block;
+                }
+                .store-name {
+                    font-size: 12px;
+                    font-weight: bold;
+                }
+                .store-info {
+                    font-size: 9px;
+                }
+                .customer-info {
+                    background: #f0f0f0;
+                    padding: 6px;
+                    margin: 6px 0;
+                    border: 1px dashed #000;
+                }
+                .customer-name {
+                    font-size: 14px;
+                    font-weight: bold;
+                }
+                .meta {
+                    font-size: 10px;
+                    margin-bottom: 6px;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                .item-name {
+                    width: 50%;
+                    vertical-align: top;
+                }
+                .item-qty {
+                    width: 15%;
+                    text-align: center;
+                    vertical-align: top;
+                }
+                .item-price {
+                    width: 35%;
+                    text-align: right;
+                    vertical-align: top;
+                }
+                .divider {
+                    border-top: 1px dashed #000;
+                    margin: 6px 0;
+                }
+                .total-section {
+                    border: 2px solid #000;
+                    padding: 8px;
+                    margin: 8px 0;
+                    text-align: center;
+                }
+                .total-label {
+                    font-size: 12px;
+                    font-weight: bold;
+                }
+                .total-amount {
+                    font-size: 18px;
+                    font-weight: bold;
+                }
+                .signature-section {
+                    margin-top: 20px;
+                    padding-top: 10px;
+                }
+                .signature-box {
+                    display: flex;
+                    justify-content: space-between;
+                }
+                .signature-item {
+                    width: 45%;
+                    text-align: center;
+                }
+                .signature-line {
+                    border-bottom: 1px solid #000;
+                    height: 40px;
+                    margin-bottom: 4px;
+                }
+                .signature-label {
+                    font-size: 9px;
+                }
+                .footer {
+                    text-align: center;
+                    border-top: 1px dashed #000;
+                    padding-top: 6px;
+                    margin-top: 10px;
+                    font-size: 9px;
+                }
+                .warning {
+                    font-size: 8px;
+                    text-align: center;
+                    margin-top: 6px;
+                    font-style: italic;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="debt-badge">⚠️ NOTA KASBON</div>
+                <div class="store-name">${config.storeName}</div>
+                <div class="store-info">${config.storeAddress}</div>
+                ${config.storePhone ? `<div class="store-info">Tel: ${config.storePhone}</div>` : ''}
+            </div>
+
+            <div class="customer-info">
+                <div style="font-size: 9px;">Nama Pengutang:</div>
+                <div class="customer-name">${customerName}</div>
+            </div>
+
+            <div class="meta">
+                <div>No: ${transaction.transactionNumber}</div>
+                <div>Tgl: ${formatDate(transaction.createdAt)}</div>
+                <div>Kasir: ${cashierName}</div>
+            </div>
+
+            <div class="divider"></div>
+
+            <table class="items">
+                ${items}
+            </table>
+
+            <div class="total-section">
+                <div class="total-label">TOTAL UTANG</div>
+                <div class="total-amount">${formatRp(transaction.total)}</div>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-box">
+                    <div class="signature-item">
+                        <div class="signature-line"></div>
+                        <div class="signature-label">Penerima Barang</div>
+                        <div class="signature-label">(${customerName})</div>
+                    </div>
+                    <div class="signature-item">
+                        <div class="signature-line"></div>
+                        <div class="signature-label">Kasir</div>
+                        <div class="signature-label">(${cashierName})</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="warning">
+                Nota ini adalah bukti utang yang sah.
+                <br>Harap dilunasi sesuai kesepakatan.
+            </div>
+
+            <div class="footer">
+                Dicetak: ${formatDate(Date.now())}
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+/**
+ * Print Debt Receipt (Nota Kasbon)
+ */
+export function printDebtReceipt(
+    data: DebtReceiptData,
+    config?: ReceiptConfig
+): void {
+    const html = generateDebtReceiptHTML(data, config);
+
+    const printWindow = window.open('', '_blank', 'width=300,height=600');
+    if (printWindow) {
+        printWindow.document.documentElement.innerHTML = html;
+        printWindow.focus();
+
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 300);
+    }
+}
+
