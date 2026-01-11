@@ -13,6 +13,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminProducts from './pages/admin/AdminProducts'
 import AdminReports from './pages/admin/AdminReports'
 import AdminOutlets from './pages/admin/AdminOutlets'
+import AdminCategories from './pages/admin/AdminCategories'
 
 // Cashier wrapper - handles store selection and shift logic
 function CashierApp() {
@@ -107,6 +108,7 @@ function App() {
         <Route path="/admin/products" element={<AdminLayout><AdminProducts /></AdminLayout>} />
         <Route path="/admin/reports" element={<AdminLayout><AdminReports /></AdminLayout>} />
         <Route path="/admin/outlets" element={<AdminLayout><AdminOutlets /></AdminLayout>} />
+        <Route path="/admin/categories" element={<AdminLayout><AdminCategories /></AdminLayout>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

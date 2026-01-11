@@ -15,6 +15,7 @@ interface AdminLayoutProps {
 const menuItems = [
     { path: '/admin', label: 'Dashboard', icon: '📊' },
     { path: '/admin/products', label: 'Produk', icon: '📦' },
+    { path: '/admin/categories', label: 'Kategori', icon: '📂' },
     { path: '/admin/reports', label: 'Laporan', icon: '📈' },
     { path: '/admin/outlets', label: 'Outlet', icon: '🏪' },
 ];
