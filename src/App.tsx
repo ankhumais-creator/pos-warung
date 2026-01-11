@@ -7,15 +7,17 @@ import { useSyncWorker } from './lib/syncWorker'
 // Pages
 import Cashier from './pages/Cashier'
 import OpenShiftModal from './components/OpenShiftModal'
+import StoreSelect from './components/StoreSelect'
 import AdminLayout from './components/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminProducts from './pages/admin/AdminProducts'
 import AdminReports from './pages/admin/AdminReports'
 import AdminOutlets from './pages/admin/AdminOutlets'
 
-// Cashier wrapper - handles shift logic
+// Cashier wrapper - handles store selection and shift logic
 function CashierApp() {
   const [isReady, setIsReady] = useState(false)
+  const [hasStoreId, setHasStoreId] = useState(false)
   const [currentShift, setCurrentShift] = useState<ShiftLog | null>(null)
 
   // Start background sync worker
@@ -26,6 +28,16 @@ function CashierApp() {
   }, [])
 
   async function initApp() {
+    // Check if store is selected
+    const storeId = localStorage.getItem('pos_store_id')
+    setHasStoreId(!!storeId)
+
+    // If no store selected yet, don't proceed with shift check
+    if (!storeId) {
+      setIsReady(true)
+      return
+    }
+
     // Check if database needs seeding
     const productCount = await db.products.count()
 
@@ -38,6 +50,19 @@ function CashierApp() {
     setCurrentShift(shift)
 
     setIsReady(true)
+  }
+
+  const handleStoreSelected = async (_storeId: string) => {
+    setHasStoreId(true)
+
+    // Now check for shift
+    const productCount = await db.products.count()
+    if (productCount === 0) {
+      await seedDatabase()
+    }
+
+    const shift = await getCurrentShift()
+    setCurrentShift(shift)
   }
 
   const handleShiftOpened = async () => {
@@ -54,6 +79,11 @@ function CashierApp() {
         </div>
       </div>
     )
+  }
+
+  // If no store selected, show store selector
+  if (!hasStoreId) {
+    return <StoreSelect onStoreSelected={handleStoreSelected} />
   }
 
   // If no open shift, show modal

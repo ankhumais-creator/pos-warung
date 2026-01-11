@@ -233,6 +233,7 @@ async function syncTransaction(
             id: entityId,
             transaction_number: payload.transactionNumber,
             shift_id: payload.shiftId,
+            store_id: payload.storeId || 'default',
             items: payload.items, // JSONB
             subtotal: payload.subtotal,
             tax: payload.tax,

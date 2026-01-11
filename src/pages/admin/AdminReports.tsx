@@ -1,10 +1,11 @@
-// 📈 ADMIN REPORTS - Visual Analytics Dashboard
-import { useState, useEffect } from 'react';
+// 📈 ADMIN REPORTS - Visual Analytics Dashboard with REAL DATA
+import { useState, useEffect, useCallback } from 'react';
 import {
     AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { db } from '../../lib/db';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAdminStore } from '../../lib/adminStore';
 
 // Chart colors - Zinc/Emerald theme
@@ -44,15 +45,12 @@ export default function AdminReports() {
         revenue: 0,
         transactions: 0,
         avgTicket: 0,
-        growth: 0,
+        itemsSold: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [dataSource, setDataSource] = useState<'local' | 'supabase'>('local');
 
-    useEffect(() => {
-        loadReportData();
-    }, [selectedOutlet, dateRange]);
-
-    async function loadReportData() {
+    const loadReportData = useCallback(async () => {
         setIsLoading(true);
         try {
             // Get date range
@@ -60,15 +58,77 @@ export default function AdminReports() {
             today.setHours(0, 0, 0, 0);
             const todayStart = today.getTime();
 
-            // Get transactions for today
-            let transactions = await db.transactions
-                .where('createdAt')
-                .above(todayStart)
-                .toArray();
+            let transactions: Array<{
+                id: string;
+                total: number;
+                status: string;
+                createdAt: number;
+                storeId?: string;
+                items?: Array<{
+                    productId: string;
+                    productName: string;
+                    quantity: number;
+                    itemTotal: number;
+                }>;
+            }> = [];
 
-            // Filter by outlet if not "all"
-            // Note: We'd need to add storeId to transactions for real filtering
-            // For now, simulate with sample data
+            // Try to fetch from Supabase first
+            if (isSupabaseConfigured() && supabase) {
+                try {
+                    let query = supabase
+                        .from('transactions')
+                        .select('*')
+                        .eq('status', 'completed')
+                        .gte('created_at', new Date(todayStart).toISOString());
+
+                    // Filter by outlet if not "all"
+                    if (selectedOutlet !== 'all') {
+                        query = query.eq('store_id', selectedOutlet);
+                    }
+
+                    const { data, error } = await query;
+
+                    if (!error && data && data.length > 0) {
+                        transactions = data.map(tx => ({
+                            id: tx.id,
+                            total: tx.total,
+                            status: tx.status,
+                            createdAt: new Date(tx.created_at).getTime(),
+                            storeId: tx.store_id,
+                            items: tx.items || [],
+                        }));
+                        setDataSource('supabase');
+                    }
+                } catch (err) {
+                    console.warn('Supabase fetch failed, using local data:', err);
+                }
+            }
+
+            // Fallback to local Dexie data
+            if (transactions.length === 0) {
+                const localTx = await db.transactions
+                    .where('createdAt')
+                    .above(todayStart)
+                    .toArray();
+
+                transactions = localTx.filter(tx => {
+                    if (tx.status !== 'completed') return false;
+                    // Filter by outlet if not "all"
+                    if (selectedOutlet !== 'all' && tx.storeId && tx.storeId !== selectedOutlet) {
+                        return false;
+                    }
+                    return true;
+                }).map(tx => ({
+                    id: tx.id,
+                    total: tx.total,
+                    status: tx.status,
+                    createdAt: tx.createdAt,
+                    storeId: tx.storeId,
+                    items: tx.items,
+                }));
+
+                setDataSource('local');
+            }
 
             // Calculate hourly data
             const hourlyMap = new Map<number, { revenue: number; count: number }>();
@@ -76,33 +136,20 @@ export default function AdminReports() {
                 hourlyMap.set(i, { revenue: 0, count: 0 });
             }
 
-            for (const tx of transactions) {
-                if (tx.status === 'completed') {
-                    const hour = new Date(tx.createdAt).getHours();
-                    if (hourlyMap.has(hour)) {
-                        const current = hourlyMap.get(hour)!;
-                        current.revenue += tx.total;
-                        current.count += 1;
-                    }
-                }
-            }
+            let totalItems = 0;
 
-            // If no real data, add sample data for visualization
-            if (transactions.length < 3) {
-                // Sample data for demo
-                hourlyMap.set(8, { revenue: 125000, count: 5 });
-                hourlyMap.set(9, { revenue: 280000, count: 12 });
-                hourlyMap.set(10, { revenue: 350000, count: 15 });
-                hourlyMap.set(11, { revenue: 420000, count: 18 });
-                hourlyMap.set(12, { revenue: 580000, count: 25 });
-                hourlyMap.set(13, { revenue: 450000, count: 20 });
-                hourlyMap.set(14, { revenue: 320000, count: 14 });
-                hourlyMap.set(15, { revenue: 280000, count: 12 });
-                hourlyMap.set(16, { revenue: 350000, count: 15 });
-                hourlyMap.set(17, { revenue: 480000, count: 22 });
-                hourlyMap.set(18, { revenue: 520000, count: 24 });
-                hourlyMap.set(19, { revenue: 380000, count: 16 });
-                hourlyMap.set(20, { revenue: 220000, count: 10 });
+            for (const tx of transactions) {
+                const hour = new Date(tx.createdAt).getHours();
+                if (hourlyMap.has(hour)) {
+                    const current = hourlyMap.get(hour)!;
+                    current.revenue += tx.total;
+                    current.count += 1;
+                }
+
+                // Count items
+                if (tx.items) {
+                    totalItems += tx.items.reduce((sum, item) => sum + item.quantity, 0);
+                }
             }
 
             const hourlyResult: HourlyData[] = [];
@@ -120,7 +167,7 @@ export default function AdminReports() {
             const productMap = new Map<string, { name: string; qty: number; rev: number }>();
 
             for (const tx of transactions) {
-                if (tx.status === 'completed' && tx.items) {
+                if (tx.items) {
                     for (const item of tx.items) {
                         const current = productMap.get(item.productId) || {
                             name: item.productName,
@@ -132,15 +179,6 @@ export default function AdminReports() {
                         productMap.set(item.productId, current);
                     }
                 }
-            }
-
-            // If no real data, add sample
-            if (productMap.size < 3) {
-                productMap.set('p1', { name: 'Es Kopi Susu', qty: 45, rev: 675000 });
-                productMap.set('p2', { name: 'Americano', qty: 32, rev: 384000 });
-                productMap.set('p3', { name: 'Caramel Macchiato', qty: 28, rev: 560000 });
-                productMap.set('p4', { name: 'Matcha Latte', qty: 25, rev: 500000 });
-                productMap.set('p5', { name: 'Nasi Goreng', qty: 20, rev: 500000 });
             }
 
             const topProductsResult: ProductSales[] = Array.from(productMap.values())
@@ -158,7 +196,7 @@ export default function AdminReports() {
             categories.forEach(cat => categoryMap.set(cat.id, 0));
 
             for (const tx of transactions) {
-                if (tx.status === 'completed' && tx.items) {
+                if (tx.items) {
                     for (const item of tx.items) {
                         const product = products.find(p => p.id === item.productId);
                         if (product) {
@@ -169,17 +207,8 @@ export default function AdminReports() {
                 }
             }
 
-            // Sample data if empty
-            if (Array.from(categoryMap.values()).every(v => v === 0)) {
-                categoryMap.set('cat_1', 2500000);
-                categoryMap.set('cat_2', 1200000);
-                categoryMap.set('cat_3', 800000);
-                categoryMap.set('cat_4', 1500000);
-                categoryMap.set('cat_5', 600000);
-            }
-
             const categoryResult: CategorySales[] = categories
-                .filter(cat => categoryMap.get(cat.id)! > 0)
+                .filter(cat => (categoryMap.get(cat.id) || 0) > 0)
                 .map(cat => ({
                     name: cat.name,
                     value: categoryMap.get(cat.id) || 0,
@@ -189,14 +218,14 @@ export default function AdminReports() {
             setCategorySales(categoryResult);
 
             // Calculate totals
-            const totalRevenue = hourlyResult.reduce((sum, h) => sum + h.revenue, 0);
-            const totalTx = hourlyResult.reduce((sum, h) => sum + h.transactions, 0);
+            const totalRevenue = transactions.reduce((sum, tx) => sum + tx.total, 0);
+            const totalTx = transactions.length;
 
             setTotals({
                 revenue: totalRevenue,
                 transactions: totalTx,
                 avgTicket: totalTx > 0 ? Math.round(totalRevenue / totalTx) : 0,
-                growth: 12.5, // Sample growth
+                itemsSold: totalItems,
             });
 
         } catch (error) {
@@ -204,7 +233,11 @@ export default function AdminReports() {
         } finally {
             setIsLoading(false);
         }
-    }
+    }, [selectedOutlet, dateRange]);
+
+    useEffect(() => {
+        loadReportData();
+    }, [loadReportData]);
 
     const formatCurrency = (value: number) => {
         if (value >= 1000000) {
@@ -235,15 +268,44 @@ export default function AdminReports() {
         );
     }
 
+    const hasData = totals.transactions > 0;
+
     return (
         <div className="p-6">
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-base-900">Laporan & Analitik</h1>
-                <p className="text-zinc-500">
-                    Performa penjualan {selectedOutlet === 'all' ? 'semua outlet' : 'outlet terpilih'}
-                </p>
+            <div className="flex items-center justify-between mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-base-900">Laporan & Analitik</h1>
+                    <p className="text-zinc-500">
+                        Performa penjualan {selectedOutlet === 'all' ? 'semua outlet' : 'outlet terpilih'} hari ini
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${dataSource === 'supabase'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-zinc-100 text-zinc-600'
+                        }`}>
+                        {dataSource === 'supabase' ? '☁️ Supabase' : '💾 Lokal'}
+                    </span>
+                    <button
+                        onClick={loadReportData}
+                        className="px-4 py-2 border border-base-200 rounded-lg hover:border-base-900 flex items-center gap-2"
+                    >
+                        🔄 Refresh
+                    </button>
+                </div>
             </div>
+
+            {/* No Data State */}
+            {!hasData && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6 text-center">
+                    <div className="text-4xl mb-3">📊</div>
+                    <h3 className="text-lg font-semibold text-yellow-800">Belum Ada Transaksi Hari Ini</h3>
+                    <p className="text-yellow-700 mt-1">
+                        Grafik akan terisi setelah ada transaksi. Buka kasir dan mulai jual!
+                    </p>
+                </div>
+            )}
 
             {/* Summary Cards */}
             <div className="grid grid-cols-4 gap-4 mb-6">
@@ -251,8 +313,7 @@ export default function AdminReports() {
                     label="Total Pendapatan"
                     value={formatFullCurrency(totals.revenue)}
                     icon="💰"
-                    trend={`+${totals.growth}%`}
-                    trendUp
+                    highlight={hasData}
                 />
                 <SummaryCard
                     label="Total Transaksi"
@@ -266,7 +327,7 @@ export default function AdminReports() {
                 />
                 <SummaryCard
                     label="Item Terjual"
-                    value={topProducts.reduce((sum, p) => sum + p.quantity, 0).toString()}
+                    value={totals.itemsSold.toString()}
                     icon="📦"
                 />
             </div>
@@ -276,105 +337,135 @@ export default function AdminReports() {
                 {/* Revenue Trend - Area Chart */}
                 <div className="col-span-2 bg-white border border-base-200 rounded-lg p-4">
                     <h2 className="font-semibold text-base-900 mb-4">📈 Trend Penjualan Harian</h2>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <AreaChart data={hourlyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                            <defs>
-                                <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
-                            <XAxis
-                                dataKey="hour"
-                                tick={{ fill: COLORS.secondary, fontSize: 12 }}
-                                axisLine={{ stroke: COLORS.grid }}
-                            />
-                            <YAxis
-                                tickFormatter={formatCurrency}
-                                tick={{ fill: COLORS.secondary, fontSize: 12 }}
-                                axisLine={{ stroke: COLORS.grid }}
-                            />
-                            <Tooltip
-                                formatter={(value: number) => [formatFullCurrency(value), 'Pendapatan']}
-                                contentStyle={{
-                                    backgroundColor: 'white',
-                                    border: `1px solid ${COLORS.grid}`,
-                                    borderRadius: '8px',
-                                }}
-                            />
-                            <Area
-                                type="monotone"
-                                dataKey="revenue"
-                                stroke={COLORS.primary}
-                                strokeWidth={2}
-                                fill="url(#revenueGradient)"
-                            />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                    {hasData ? (
+                        <ResponsiveContainer width="100%" height={300}>
+                            <AreaChart data={hourlyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
+                                <XAxis
+                                    dataKey="hour"
+                                    tick={{ fill: COLORS.secondary, fontSize: 12 }}
+                                    axisLine={{ stroke: COLORS.grid }}
+                                />
+                                <YAxis
+                                    tickFormatter={formatCurrency}
+                                    tick={{ fill: COLORS.secondary, fontSize: 12 }}
+                                    axisLine={{ stroke: COLORS.grid }}
+                                />
+                                <Tooltip
+                                    formatter={(value: number) => [formatFullCurrency(value), 'Pendapatan']}
+                                    contentStyle={{
+                                        backgroundColor: 'white',
+                                        border: `1px solid ${COLORS.grid}`,
+                                        borderRadius: '8px',
+                                    }}
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="revenue"
+                                    stroke={COLORS.primary}
+                                    strokeWidth={2}
+                                    fill="url(#revenueGradient)"
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-[300px] text-zinc-400">
+                            <div className="text-center">
+                                <div className="text-4xl mb-2">📉</div>
+                                <p>Data tersedia setelah ada transaksi</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Category Breakdown - Pie Chart */}
                 <div className="bg-white border border-base-200 rounded-lg p-4">
                     <h2 className="font-semibold text-base-900 mb-4">🥧 Penjualan per Kategori</h2>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                            <Pie
-                                data={categorySales}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={100}
-                                paddingAngle={5}
-                                dataKey="value"
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                labelLine={false}
-                            >
-                                {categorySales.map((_, index) => (
-                                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip formatter={(value: number) => formatFullCurrency(value)} />
-                        </PieChart>
-                    </ResponsiveContainer>
+                    {categorySales.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={categorySales}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={100}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                    labelLine={false}
+                                >
+                                    {categorySales.map((_, index) => (
+                                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value: number) => formatFullCurrency(value)} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-[300px] text-zinc-400">
+                            <div className="text-center">
+                                <div className="text-4xl mb-2">🥧</div>
+                                <p>Belum ada data kategori</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Top Products - Bar Chart */}
             <div className="bg-white border border-base-200 rounded-lg p-4">
                 <h2 className="font-semibold text-base-900 mb-4">🏆 Top 5 Produk Terlaris</h2>
-                <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={topProducts} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
-                        <XAxis type="number" tick={{ fill: COLORS.secondary, fontSize: 12 }} />
-                        <YAxis
-                            type="category"
-                            dataKey="name"
-                            tick={{ fill: COLORS.primary, fontSize: 12, fontWeight: 500 }}
-                            width={100}
-                        />
-                        <Tooltip
-                            formatter={(value: number, name: string) => [
-                                name === 'quantity' ? `${value} item` : formatFullCurrency(value),
-                                name === 'quantity' ? 'Terjual' : 'Pendapatan'
-                            ]}
-                            contentStyle={{
-                                backgroundColor: 'white',
-                                border: `1px solid ${COLORS.grid}`,
-                                borderRadius: '8px',
-                            }}
-                        />
-                        <Legend />
-                        <Bar dataKey="quantity" name="Qty Terjual" fill={COLORS.primary} radius={[0, 4, 4, 0]} />
-                        <Bar dataKey="revenue" name="Pendapatan" fill={COLORS.accent} radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                </ResponsiveContainer>
+                {topProducts.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={topProducts} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
+                            <XAxis type="number" tick={{ fill: COLORS.secondary, fontSize: 12 }} />
+                            <YAxis
+                                type="category"
+                                dataKey="name"
+                                tick={{ fill: COLORS.primary, fontSize: 12, fontWeight: 500 }}
+                                width={100}
+                            />
+                            <Tooltip
+                                formatter={(value: number, name: string) => [
+                                    name === 'quantity' ? `${value} item` : formatFullCurrency(value),
+                                    name === 'quantity' ? 'Terjual' : 'Pendapatan'
+                                ]}
+                                contentStyle={{
+                                    backgroundColor: 'white',
+                                    border: `1px solid ${COLORS.grid}`,
+                                    borderRadius: '8px',
+                                }}
+                            />
+                            <Legend />
+                            <Bar dataKey="quantity" name="Qty Terjual" fill={COLORS.primary} radius={[0, 4, 4, 0]} />
+                            <Bar dataKey="revenue" name="Pendapatan" fill={COLORS.accent} radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center h-[250px] text-zinc-400">
+                        <div className="text-center">
+                            <div className="text-4xl mb-2">🏆</div>
+                            <p>Belum ada produk terjual</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Data Note */}
-            <div className="mt-4 p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-500">
-                💡 <strong>Note:</strong> Data ditampilkan berdasarkan transaksi di database lokal.
-                Untuk data lengkap, pastikan sinkronisasi dengan server berjalan.
+            <div className="mt-4 p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-500 flex items-center gap-2">
+                <span>💡</span>
+                <span>
+                    Data diambil dari {dataSource === 'supabase' ? 'Supabase (cloud)' : 'database lokal'}.
+                    {selectedOutlet !== 'all' && ' Difilter berdasarkan outlet yang dipilih.'}
+                </span>
             </div>
         </div>
     );
@@ -385,24 +476,22 @@ interface SummaryCardProps {
     readonly label: string;
     readonly value: string;
     readonly icon: string;
-    readonly trend?: string;
-    readonly trendUp?: boolean;
+    readonly highlight?: boolean;
 }
 
-function SummaryCard({ label, value, icon, trend, trendUp }: SummaryCardProps) {
+function SummaryCard({ label, value, icon, highlight }: SummaryCardProps) {
     return (
-        <div className="bg-white border border-base-200 rounded-lg p-4">
+        <div className={`rounded-lg border p-4 ${highlight ? 'bg-base-900 text-white border-base-900' : 'bg-white border-base-200'
+            }`}>
             <div className="flex items-center justify-between mb-2">
                 <span className="text-2xl">{icon}</span>
-                {trend && (
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${trendUp ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                        {trend}
-                    </span>
-                )}
             </div>
-            <div className="text-xl font-bold text-base-900">{value}</div>
-            <div className="text-sm text-zinc-500">{label}</div>
+            <div className={`text-xl font-bold ${highlight ? 'text-white' : 'text-base-900'}`}>
+                {value}
+            </div>
+            <div className={`text-sm ${highlight ? 'text-zinc-300' : 'text-zinc-500'}`}>
+                {label}
+            </div>
         </div>
     );
 }

@@ -1,7 +1,7 @@
 // 🔐 ADMIN LAYOUT - Desktop-optimized Back Office Interface
 import { useState, useEffect, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAdminStore, OUTLETS } from '../lib/adminStore';
+import { useAdminStore } from '../lib/adminStore';
 
 // MVP: Simple hardcoded password (REPLACE with Supabase Auth in production!)
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
@@ -185,8 +185,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
 // Outlet Selector Component
 function OutletSelector() {
-    const { selectedOutlet, setSelectedOutlet } = useAdminStore();
-    const currentOutlet = OUTLETS.find(o => o.id === selectedOutlet);
+    const { outlets, selectedOutlet, setSelectedOutlet, fetchOutlets, isLoadingOutlets } = useAdminStore();
+    const currentOutlet = outlets.find(o => o.id === selectedOutlet);
+
+    // Fetch outlets on mount
+    useEffect(() => {
+        fetchOutlets();
+    }, [fetchOutlets]);
 
     return (
         <div className="flex items-center gap-3">
@@ -194,13 +199,18 @@ function OutletSelector() {
             <select
                 value={selectedOutlet}
                 onChange={(e) => setSelectedOutlet(e.target.value)}
-                className="px-3 py-1.5 border border-base-200 rounded-lg text-sm font-medium text-base-900 bg-white focus:outline-none focus:border-base-900 cursor-pointer"
+                disabled={isLoadingOutlets}
+                className="px-3 py-1.5 border border-base-200 rounded-lg text-sm font-medium text-base-900 bg-white focus:outline-none focus:border-base-900 cursor-pointer disabled:opacity-50"
             >
-                {OUTLETS.map(outlet => (
-                    <option key={outlet.id} value={outlet.id}>
-                        {outlet.id === 'all' ? '🏪 ' : '📍 '}{outlet.name}
-                    </option>
-                ))}
+                {isLoadingOutlets ? (
+                    <option>Loading...</option>
+                ) : (
+                    outlets.map(outlet => (
+                        <option key={outlet.id} value={outlet.id}>
+                            {outlet.id === 'all' ? '🏪 ' : '📍 '}{outlet.name}
+                        </option>
+                    ))
+                )}
             </select>
             {currentOutlet?.address && (
                 <span className="text-xs text-zinc-400">{currentOutlet.address}</span>

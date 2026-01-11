@@ -62,6 +62,7 @@ export interface Transaction {
     cashChange?: number; // Kembalian
     status: 'completed' | 'pending' | 'cancelled';
     shiftId: string; // Link ke shift log
+    storeId?: string; // Link ke store/outlet
     createdAt: number;
     syncedToServer: boolean; // Untuk tracking sync
 }
@@ -221,9 +222,13 @@ export async function addTransaction(transaction: Omit<Transaction, 'id' | 'crea
     const now = Date.now();
     const txId = `tx_${now}_${Math.random().toString(36).slice(2, 9)}`;
 
+    // Get storeId from localStorage (set during tablet setup)
+    const storeId = localStorage.getItem('pos_store_id') || 'default';
+
     const fullTransaction: Transaction = {
         ...transaction,
         id: txId,
+        storeId: transaction.storeId || storeId,
         createdAt: now,
         syncedToServer: false,
     };
