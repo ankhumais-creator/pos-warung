@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS stores (
 -- Add RLS policy
 ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
 
--- Allow all operations for now (customize based on auth later)
+-- Drop existing policy if it exists, then create new one
+DROP POLICY IF EXISTS "Allow all operations on stores" ON stores;
 CREATE POLICY "Allow all operations on stores" ON stores
     FOR ALL USING (true) WITH CHECK (true);
 

@@ -17,12 +17,14 @@ ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 -- 2. TRANSACTIONS TABLE POLICIES
 -- ============================================
 -- Allow anyone to read transactions (for MVP)
+DROP POLICY IF EXISTS "Allow public read access to transactions" ON transactions;
 CREATE POLICY "Allow public read access to transactions"
 ON transactions FOR SELECT
 TO anon, authenticated
 USING (true);
 
 -- Allow anyone to insert transactions (for MVP)
+DROP POLICY IF EXISTS "Allow public insert access to transactions" ON transactions;
 CREATE POLICY "Allow public insert access to transactions"
 ON transactions FOR INSERT
 TO anon, authenticated
@@ -31,17 +33,20 @@ WITH CHECK (true);
 -- 3. SHIFT_LOGS TABLE POLICIES
 -- ============================================
 -- Allow anyone to read shift logs (for MVP)
+DROP POLICY IF EXISTS "Allow public read access to shift_logs" ON shift_logs;
 CREATE POLICY "Allow public read access to shift_logs"
 ON shift_logs FOR SELECT
 TO anon, authenticated
 USING (true);
 
 -- Allow anyone to insert/update shift logs (for MVP)
+DROP POLICY IF EXISTS "Allow public insert access to shift_logs" ON shift_logs;
 CREATE POLICY "Allow public insert access to shift_logs"
 ON shift_logs FOR INSERT
 TO anon, authenticated
 WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow public update access to shift_logs" ON shift_logs;
 CREATE POLICY "Allow public update access to shift_logs"
 ON shift_logs FOR UPDATE
 TO anon, authenticated
@@ -51,17 +56,20 @@ WITH CHECK (true);
 -- 4. PRODUCTS TABLE POLICIES
 -- ============================================
 -- Allow anyone to read products (for MVP)
+DROP POLICY IF EXISTS "Allow public read access to products" ON products;
 CREATE POLICY "Allow public read access to products"
 ON products FOR SELECT
 TO anon, authenticated
 USING (true);
 
 -- Allow anyone to insert/update products (for MVP)
+DROP POLICY IF EXISTS "Allow public insert access to products" ON products;
 CREATE POLICY "Allow public insert access to products"
 ON products FOR INSERT
 TO anon, authenticated
 WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow public update access to products" ON products;
 CREATE POLICY "Allow public update access to products"
 ON products FOR UPDATE
 TO anon, authenticated
