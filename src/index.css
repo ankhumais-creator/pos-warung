@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+/* 🎨 MONOCHROME HIGH-CONTRAST DESIGN SYSTEM */
+
+/* @theme is a Tailwind CSS v4 custom at-rule */
+@theme {
+  /* Zinc Palette - Professional & High Contrast */
+  --color-base-50: #fafafa;
+  --color-base-100: #f4f4f5;
+  --color-base-200: #e4e4e7;
+  --color-base-900: #18181b;
+
+  /* Accent Color - Zinc/Black (Monochrome) */
+  --color-accent-600: #18181b;
+  --color-accent-700: #27272a;
+  --color-accent-800: #3f3f46;
+
+  /* Semantic Colors - Dark shades only */
+  --color-success-600: #047857;
+  --color-success-700: #065f46;
+  --color-danger-600: #be123c;
+  --color-danger-700: #9f1239;
+}
+
+/* Reset & Base */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background-color: #f4f4f5;
+  /* Zinc-100 */
+  color: #18181b;
+  /* Zinc-900 */
+  overflow: hidden;
+  touch-action: pan-x pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Typography - Bold & Readable */
+h1,
+h2,
+h3 {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Touch Targets - Minimum 44px */
+button,
+input,
+select,
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Buttons - Tegas, Monochrome */
+.btn-primary {
+  background-color: #18181b;
+  /* Zinc-900 */
+  color: white;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  transition: background-color 150ms;
+}
+
+.btn-primary:hover {
+  background-color: #27272a;
+  /* Zinc-800 */
+}
+
+.btn-primary:active {
+  background-color: #3f3f46;
+  /* Zinc-700 */
+}
+
+.btn-danger {
+  background-color: #be123c;
+  /* Rose-700 */
+  color: white;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.btn-danger:hover {
+  background-color: #9f1239;
+  /* Rose-800 */
+}
+
+/* Cards - No Shadow, Border Tegas */
+.card {
+  background-color: white;
+  border: 1px solid #e4e4e7;
+  /* Zinc-200 */
+  border-radius: 6px;
+  transition: border-color 150ms;
+}
+
+.card:hover {
+  border-color: #a1a1aa;
+  /* Zinc-400 */
+}
+
+.card-active {
+  border-color: #18181b;
+  /* Zinc-900 */
+  border-width: 2px;
+}
+
+/* Scrollbar - Sederhana */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f4f4f5;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #a1a1aa;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
+}
+
+/* Utilities */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.text-price {
+  font-weight: 700;
+  font-size: 1.25rem;
+  /* 20px */
+  color: #18181b;
+  /* Zinc-900 */
+}
+
+.text-total {
+  font-weight: 800;
+  font-size: 1.875rem;
+  /* 30px */
+  color: #18181b;
+  /* Zinc-900 */
+}
+
+/* Animations */
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out forwards;
+}
