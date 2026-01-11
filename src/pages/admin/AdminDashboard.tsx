@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../../lib/db';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { useAdminStore } from '../../lib/adminStore';
 
 interface DashboardStats {
     totalProducts: number;
@@ -13,6 +14,7 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
+    const { selectedOutlet } = useAdminStore();
     const [stats, setStats] = useState<DashboardStats>({
         totalProducts: 0,
         activeProducts: 0,
@@ -22,12 +24,12 @@ export default function AdminDashboard() {
         pendingSyncItems: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
-    const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
+    const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'disconnected' | 'checking' | 'not_configured'>('checking');
 
     useEffect(() => {
         loadStats();
         checkSupabaseConnection();
-    }, []);
+    }, [selectedOutlet]);
 
     async function loadStats() {
         try {
@@ -66,15 +68,28 @@ export default function AdminDashboard() {
     }
 
     async function checkSupabaseConnection() {
-        if (!isSupabaseConfigured() || !supabase) {
+        // First check if Supabase is configured at all
+        if (!isSupabaseConfigured()) {
+            setSupabaseStatus('not_configured');
+            return;
+        }
+
+        if (!supabase) {
             setSupabaseStatus('disconnected');
             return;
         }
 
         try {
+            // Simple health check - try to query products table
             const { error } = await supabase.from('products').select('id').limit(1);
-            setSupabaseStatus(error ? 'disconnected' : 'connected');
-        } catch {
+            if (error) {
+                console.warn('Supabase query error:', error.message);
+                setSupabaseStatus('disconnected');
+            } else {
+                setSupabaseStatus('connected');
+            }
+        } catch (err) {
+            console.error('Supabase connection error:', err);
             setSupabaseStatus('disconnected');
         }
     }
@@ -102,12 +117,14 @@ export default function AdminDashboard() {
     const getStatusColorClass = (status: typeof supabaseStatus) => {
         if (status === 'connected') return 'bg-green-500';
         if (status === 'checking') return 'bg-yellow-500 animate-pulse';
+        if (status === 'not_configured') return 'bg-zinc-400';
         return 'bg-red-500';
     };
 
     const getStatusText = (status: typeof supabaseStatus) => {
         if (status === 'connected') return 'Terhubung';
         if (status === 'checking') return 'Memeriksa...';
+        if (status === 'not_configured') return 'Belum Dikonfigurasi';
         return 'Tidak Terhubung';
     };
 

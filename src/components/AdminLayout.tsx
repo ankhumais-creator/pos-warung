@@ -1,6 +1,7 @@
 // 🔐 ADMIN LAYOUT - Desktop-optimized Back Office Interface
 import { useState, useEffect, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAdminStore, OUTLETS } from '../lib/adminStore';
 
 // MVP: Simple hardcoded password (REPLACE with Supabase Auth in production!)
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
@@ -159,9 +160,51 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-auto">
-                {children}
-            </main>
+            <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Top Header with Store Selector */}
+                <header className="bg-white border-b border-base-200 px-6 py-3 flex items-center justify-between">
+                    <div className="text-sm text-zinc-500">
+                        {new Date().toLocaleDateString('id-ID', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                        })}
+                    </div>
+                    <OutletSelector />
+                </header>
+
+                {/* Page Content */}
+                <main className="flex-1 overflow-auto">
+                    {children}
+                </main>
+            </div>
+        </div>
+    );
+}
+
+// Outlet Selector Component
+function OutletSelector() {
+    const { selectedOutlet, setSelectedOutlet } = useAdminStore();
+    const currentOutlet = OUTLETS.find(o => o.id === selectedOutlet);
+
+    return (
+        <div className="flex items-center gap-3">
+            <span className="text-sm text-zinc-500">Outlet:</span>
+            <select
+                value={selectedOutlet}
+                onChange={(e) => setSelectedOutlet(e.target.value)}
+                className="px-3 py-1.5 border border-base-200 rounded-lg text-sm font-medium text-base-900 bg-white focus:outline-none focus:border-base-900 cursor-pointer"
+            >
+                {OUTLETS.map(outlet => (
+                    <option key={outlet.id} value={outlet.id}>
+                        {outlet.id === 'all' ? '🏪 ' : '📍 '}{outlet.name}
+                    </option>
+                ))}
+            </select>
+            {currentOutlet?.address && (
+                <span className="text-xs text-zinc-400">{currentOutlet.address}</span>
+            )}
         </div>
     );
 }
